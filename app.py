@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import requests
 import time
@@ -15,13 +16,213 @@ from pythainlp.tokenize import word_tokenize
 from pythainlp.corpus import thai_stopwords
 
 # --- CONFIG & API KEYS ---
-API_KEY = "IFksVNfu2PXl0SIxmZz4zdxU01TYyanJ"
+# เก็บคีย์ไว้ใน .streamlit/secrets.toml  ->  AIFORTHAI_KEY = "xxxx"
+# (หรือตั้งเป็น Environment Variable ชื่อ AIFORTHAI_KEY)
+try:
+    API_KEY = st.secrets["AIFORTHAI_KEY"]
+except Exception:
+    API_KEY = os.environ.get("AIFORTHAI_KEY", "")
 
 st.set_page_config(
     page_title="Team Fit AI & Personality Analyzer",
     page_icon="🧠",
     layout="wide"
 )
+
+# --- CUSTOM MODERN DESIGN SYSTEM & CSS ---
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap');
+
+    html, body, .stApp,
+    .stApp p, .stApp li, .stApp label, .stApp h1, .stApp h2, .stApp h3,
+    .stApp h4, .stApp h5, .stApp h6, .stApp input, .stApp textarea,
+    .stApp button p, .stApp td, .stApp th {
+        font-family: 'Plus Jakarta Sans', 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    /* กันไอคอน Material ไม่ให้กลายเป็นตัวหนังสือ */
+    .material-symbols-rounded, [data-testid="stIconMaterial"] {
+        font-family: 'Material Symbols Rounded' !important;
+    }
+
+    /* ซ่อนเมนูมุมขวาบนทั้งหมด (Deploy, ⋮, Rerun, Clear cache, Print, Record screen) */
+    [data-testid="stToolbar"],
+    [data-testid="stMainMenu"],
+    [data-testid="stDeployButton"],
+    [data-testid="stStatusWidget"],
+    #MainMenu, footer { display: none !important; visibility: hidden !important; }
+    header[data-testid="stHeader"] { background: transparent !important; height: 0 !important; }
+    .block-container { padding-top: 1.5rem !important; }
+
+    /* Hero Header */
+    .hero-banner {
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 55%, #312E81 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #ffffff;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hero-title {
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin: 0 0 6px 0;
+        background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 60%, #93C5FD 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+        color: #94A3B8;
+        font-size: 14px;
+        margin: 0 0 14px 0;
+        line-height: 1.5;
+    }
+    .hero-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #E2E8F0;
+    }
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #22C55E;
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+        animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    /* Modern Cards */
+    .modern-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        transition: all 0.2s ease-in-out;
+    }
+    .modern-card:hover {
+        border-color: #CBD5E1;
+        box-shadow: 0 6px 18px -3px rgba(0,0,0,0.06);
+    }
+
+    /* Preset & Action Buttons */
+    div[data-testid="stButton"] > button {
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.15s ease-in-out;
+        border: 1px solid #E2E8F0;
+    }
+    div[data-testid="stButton"] > button:hover {
+        transform: translateY(-1px);
+        border-color: #94A3B8;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* Metric Cards */
+    div[data-testid="stMetric"] {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    /* Tab Headers & Subtabs */
+    button[data-baseweb="tab"] {
+        font-size: 14px;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #1E293B !important;
+        border-bottom: 3px solid #2563EB !important;
+        font-weight: 700 !important;
+        background: rgba(37, 99, 235, 0.04);
+    }
+
+    /* Expander Containers */
+    div[data-testid="stExpander"] {
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        background: #FAFAFA;
+        margin-bottom: 12px;
+    }
+    div[data-testid="stExpander"] summary {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1E293B;
+    }
+
+    /* Tag Pills for Skills */
+    .tag-hard {
+        background-color: #EFF6FF;
+        color: #1E40AF;
+        border: 1px solid #BFDBFE;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-block;
+        margin: 2px 4px 2px 0;
+    }
+    .tag-soft {
+        background-color: #F0FDF4;
+        color: #166534;
+        border: 1px solid #BBF7D0;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-block;
+        margin: 2px 4px 2px 0;
+    }
+    .tag-tool {
+        background-color: #F8FAFC;
+        color: #0369A1;
+        border: 1px solid #BAE6FD;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-block;
+        margin: 2px 4px 2px 0;
+    }
+    .tag-candidate {
+        background-color: #FFFFFF;
+        border-radius: 20px;
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 CATEGORIES = [
     'การสื่อสาร (Text Length)', 
@@ -34,41 +235,236 @@ CATEGORIES = [
 ROLE_PROFILES = {
     0: {
         "title": "🎯 The Driver / Leader (ผู้นำมุ่งมั่นผลงาน)",
+        "short_title": "The Driver / Leader",
         "color": "#E63946",
         "strengths": "กล้าตัดสินใจ มุ่งเน้นความสำเร็จและเป้าหมาย ผลักดันงานให้เสร็จตามกำหนด มีภาวะผู้นำสูง",
         "blindspots": "อาจเร่งรัดงานจนเพื่อนร่วมทีมเครียด หรือลืมฟังรายละเอียดปลีกย่อยของคนอื่น",
         "pairing": "จับคู่ได้ดีกับ 🔍 The Analytical เพื่อช่วยตรวจสอบความเสี่ยง และ 🤝 The Team Player เพื่อช่วยดูแลขวัญกำลังใจทีม",
         "tip": "ลองให้เวลารับฟังมุมมองของเพื่อนร่วมทีมให้มากขึ้นก่อนเคาะทิศทางงาน",
-        "job_title": "Project Leader / Scrum Master"
+        "job_title": "Project Leader / Scrum Master",
+        "track": "สายบริหารและผู้นำโครงการ (Project Leadership)",
+        "skills": {
+            "hard": [
+                "Project Management & Roadmap Planning", 
+                "Agile & Scrum Framework (Sprint, Backlog, Retro)", 
+                "Risk Assessment & Contingency Planning", 
+                "KPI & Sprint Tracking", 
+                "Resource & Scope Management"
+            ],
+            "soft": [
+                "ภาวะผู้นำเชิงกลยุทธ์ (Strategic Leadership)", 
+                "การตัดสินใจที่เฉียบขาด (Decisiveness)", 
+                "การเจรจาต่อรองและการโน้มน้าวใจ (Negotiation)", 
+                "การระงับข้อขัดแย้ง (Conflict Resolution)", 
+                "การบริหารเวลาและรับมือแรงกดดัน (Time Management)"
+            ],
+            "tools": ["Jira", "Trello", "Notion", "GitHub Projects", "Slack", "Asana", "Miro"]
+        },
+        "responsibilities": [
+            "กำหนดทิศทาง Roadmap และ Milestone ของโปรเจกต์ให้ชัดเจน",
+            "จัดสรรและแจกแจงงานในแต่ละ Sprint พร้อมติดตามความคืบหน้า",
+            "ปลดบล็อกอุปสรรค (Blockers) ให้เพื่อนร่วมทีมทำงานต่อได้ทันที",
+            "ตัดสินใจขั้นสุดท้ายเมื่อทีมมีความคิดเห็นหลากหลาย"
+        ],
+        "upskill_recommendations": "ฝึกฝนการฟังอย่างลึกซึ้ง (Active Listening) และการให้คำชมหรือ Feedback เชิงบวกเพื่อเสริมพลังทีม",
+        "competency_vector": [95, 60, 80, 70, 75]
     },
     1: {
         "title": "🔍 The Analytical (นักคิดวิเคราะห์รอบคอบ)",
+        "short_title": "The Analytical",
         "color": "#1D3557",
         "strengths": "คิดอย่างมีเหตุผล ละเอียดรอบคอบ มองเห็นความเสี่ยงและจุดบกพร่องของระบบได้ชัดเจน",
         "blindspots": "คิดวิเคราะห์เยอะเกินไป (Analysis Paralysis) จนเริ่มงานช้ากว่าแผน หรือกังวลมากเกินไป",
         "pairing": "จับคู่ได้ดีกับ 🎯 The Driver เพื่อช่วยเคาะตัดสินใจ และ 💡 The Creative เพื่อช่วยจุดประกายไอเดียใหม่",
         "tip": "กำหนดเส้นตายชัดเจน และยอมรับความสมบูรณ์แบบที่ 80% เพื่อให้เริ่มลงมือทำได้ไวขึ้น",
-        "job_title": "Core Developer / Data Analyst"
+        "job_title": "Core Developer / Data & System Analyst",
+        "track": "สายพัฒนาและวิเคราะห์ข้อมูล (Engineering & Data)",
+        "skills": {
+            "hard": [
+                "System Architecture & API Design", 
+                "Algorithm Design & Optimization", 
+                "Python, SQL & Backend Development", 
+                "Data Modeling, ETL & Pipeline Design", 
+                "Code Review, Refactoring & Unit Testing"
+            ],
+            "soft": [
+                "การคิดเชิงวิเคราะห์และตรรกะ (Critical Thinking)", 
+                "ความละเอียดรอบคอบในการตรวจสอบ (Attention to Detail)", 
+                "การแก้ปัญหาเชิงโครงสร้าง (Structured Problem Solving)", 
+                "การประเมินความเสี่ยงเชิงเทคนิค (Technical Risk Assessment)", 
+                "ความมุ่งมั่นและความอดทนในการแก้บัก (Persistence)"
+            ],
+            "tools": ["Python", "VS Code", "Git & GitHub", "Docker", "PostgreSQL", "Pandas", "Scikit-Learn"]
+        },
+        "responsibilities": [
+            "ออกแบบสถาปัตยกรรมระบบ โครงสร้างฐานข้อมูล และ API",
+            "พัฒนาฟังก์ชันการทำงานหลักและอัลกอริทึมที่ซับซ้อน",
+            "ทดสอบความปลอดภัย ประสิทธิภาพ และความถูกต้องของข้อมูล",
+            "ตรวจสอบคุณภาพโค้ด (Code Review) และป้องกันข้อผิดพลาดเชิงเทคนิค"
+        ],
+        "upskill_recommendations": "ฝึกการสื่อสารเรื่องเทคนิคยากๆ ให้คนทั่วไปเข้าใจง่าย และฝึกเทคนิค Timeboxing เพื่อป้องกันการติดหล่มคิดนาน",
+        "competency_vector": [55, 95, 75, 60, 95]
     },
     2: {
         "title": "🤝 The Team Player (ผู้ประสานงานและสร้างมิตรภาพ)",
+        "short_title": "The Team Player",
         "color": "#2A9D8F",
         "strengths": "รับฟังผู้อื่นเก่ง สร้างบรรยากาศที่ดี สมานรอยร้าวและลดความขัดแย้งในทีม เอาใจใส่ทุกคน",
         "blindspots": "เกรงใจผู้อื่นมากเกินไป ไม่กล้าแสดงความคิดเห็นที่ขัดแย้ง หรือแบกรับภาระแทนคนอื่น",
         "pairing": "เข้ากับทุกบทบาทได้ดี โดยเฉพาะทำงานร่วมกับ 🎯 The Driver เพื่อช่วยสื่อสารและประสานทีมอย่างนุ่มนวล",
         "tip": "ฝึกแสดงความเห็นตรงไปตรงมา การท้วงติงด้วยความหวังดีจะช่วยให้โปรเจกต์ดียิ่งขึ้น",
-        "job_title": "Team Coordinator & QA Lead"
+        "job_title": "Team Coordinator & QA Lead",
+        "track": "สายประสานงานและควบคุมคุณภาพ (Coordination & QA)",
+        "skills": {
+            "hard": [
+                "Quality Assurance (QA) & Test Case Design", 
+                "User Acceptance Testing (UAT) & Bug Triage", 
+                "Sprint Facilitation & Team Retrospective", 
+                "Technical Documentation & User Manuals", 
+                "Release Management & Cross-team Sync"
+            ],
+            "soft": [
+                "การสื่อสารด้วยความเข้าอกเข้าใจ (Empathy & Active Listening)", 
+                "การประสานงานข้ามสายงาน (Cross-functional Collaboration)", 
+                "การสร้างบรรยากาศเชิงบวกและขวัญกำลังใจ (Team Morale Building)", 
+                "การเจรจาสมานฉันท์และลดแรงเสียดทาน (Mediation)", 
+                "ความยืดหยุ่นและการสนับสนุนผู้อื่น (Supportiveness)"
+            ],
+            "tools": ["Confluence", "Miro", "Discord / Slack", "Google Workspace", "Postman", "Notion", "ClickUp"]
+        },
+        "responsibilities": [
+            "ดูแลการทดสอบระบบ ออกแบบ Test Cases และควบคุมคุณภาพงานก่อนส่งมอบ",
+            "ประสานงานระหว่างฝ่ายพัฒนา ฝ่ายออกแบบ และฝ่ายบริหาร",
+            "ดูแลและอัปเดตเอกสารประกอบโปรเจกต์และสรุปการประชุม",
+            "ดูแลสภาพจิตใจ รับฟังปัญหา และเสริมสร้างความสามัคคีในทีม"
+        ],
+        "upskill_recommendations": "ฝึกทักษะ Assertive Communication กล้าปฏิเสธอย่างสุภาพ และกล้าทักท้วงเมื่อพบข้อผิดพลาด",
+        "competency_vector": [75, 55, 95, 65, 60]
     },
     3: {
         "title": "💡 The Creative Innovator (นักคิดสร้างสรรค์สิ่งใหม่)",
+        "short_title": "The Creative Innovator",
         "color": "#F4A261",
         "strengths": "คิดนอกกรอบ มีไอเดียแปลกใหม่ มองเห็นโอกาสที่คนอื่นมองข้าม ยืดหยุ่นปรับตัวเก่ง",
         "blindspots": "อาจเบื่อง่ายเมื่อต้องทำงานเอกสาร รูทีน หรือขั้นตอนที่มีแบบแผนตายตัว",
         "pairing": "จับคู่ได้ดีกับ 🔍 The Analytical เพื่อช่วยนำไอเดียมาทำให้เกิดผลจริงได้อย่างเป็นขั้นตอน",
         "tip": "จดบันทึกไอเดียเป็นระบบและแบ่งงานเป็นสเต็ปย่อยๆ เพื่อส่งต่องานให้เพื่อนร่วมทีมทำต่อได้ง่าย",
-        "job_title": "Product Designer / Innovation Lead"
+        "job_title": "Product Designer / UI/UX & Innovation Lead",
+        "track": "สายออกแบบและนวัตกรรม (UI/UX & Innovation)",
+        "skills": {
+            "hard": [
+                "UI/UX Design, Wireframing & Interactive Prototyping", 
+                "Design Thinking & User-Centered Design Methodology", 
+                "User Research, Usability Testing & Journey Mapping", 
+                "Design Systems & Component Library Architecture", 
+                "Information Architecture (IA) & Content Strategy"
+            ],
+            "soft": [
+                "ความคิดสร้างสรรค์และการคิดนอกกรอบ (Lateral & Creative Thinking)", 
+                "ความยืดหยุ่นและการปรับตัวต่อการเปลี่ยนแปลง (Adaptability & Agility)", 
+                "การเล่าเรื่องเพื่อถ่ายทอดวิสัยทัศน์ (Visual Storytelling)", 
+                "การกระตุ้นแรงบันดาลใจในทีม (Inspiration & Ideation)", 
+                "การเปิดรับความคิดเห็นเพื่อพัฒนาต่อยอด (Open-mindedness)"
+            ],
+            "tools": ["Figma", "Adobe XD", "FigJam", "Canva", "Whimsical", "Maze", "Midjourney"]
+        },
+        "responsibilities": [
+            "ออกแบบโครงสร้างหน้าจอ Wireframe, Prototype และ UI Design System",
+            "ศึกษาพฤติกรรมผู้ใช้ (User Research) และทดสอบความพึงพอใจ (Usability)",
+            "คิดค้นฟีเจอร์แปลกใหม่เพื่อสร้างความแตกต่างและจุดเด่นให้ผลิตภัณฑ์",
+            "ถ่ายทอด Concept และวิสัยทัศน์ของโปรดักต์ให้สมาชิกในทีมเห็นภาพตรงกัน"
+        ],
+        "upskill_recommendations": "ฝึกการจัดทำเอกสารส่งต่องานออกแบบ (Hand-off documentation) ให้ทีม Dev พัฒนาต่อง่ายขึ้น",
+        "competency_vector": [65, 65, 65, 95, 70]
     }
 }
+
+TEAM_COMPETENCY_AREAS = [
+    "การบริหารและแผนงาน (Management)", 
+    "วิศวกรรมและโค้ดดิ้ง (Engineering)", 
+    "การประกันคุณภาพและประสานงาน (QA & Coordination)", 
+    "การออกแบบและนวัตกรรม (UI/UX & Design)", 
+    "การวิเคราะห์ข้อมูลและตรรกะ (Analytics & Logic)"
+]
+
+ROLE_SYNERGY_RULES = {
+    (0, 0): {
+        "score": 58,
+        "type": "⚠️ ระวังการชนกัน (Ego Clash Risk)",
+        "detail": "ผู้นำ 2 คนทำงานร่วมกัน อาจเกิดการแย่งบทบาทตัดสินใจหรือขัดแย้งในทิศทาง ควรกำหนดขอบเขตโครงการ (Co-ownership) ให้ชัดเจน",
+        "status": "warning"
+    },
+    (0, 1): {
+        "score": 93,
+        "type": "🌟 คู่หูยุทธศาสตร์ (Strategic Execution Duo)",
+        "detail": "Leader ช่วยตัดสินใจและกำหนดทิศทาง ขณะที่ Analytical ช่วยตรวจสอบตรรกะ ข้อมูล และความเสี่ยง ทำให้ทีมเดินหน้าอย่างมั่นคงและถูกต้อง",
+        "status": "success"
+    },
+    (0, 2): {
+        "score": 96,
+        "type": "🌟 คู่หูขับเคลื่อนและสานพลัง (Driver & Anchor Duo)",
+        "detail": "Leader มุ่งเน้นผลลัพธ์และความเร็ว ขณะที่ Team Player ช่วยดูแลสภาพจิตใจและสมานรอยร้าวในทีม ทำให้ทีมไปถึงเป้าหมายโดยไม่มีใครตกหล่น",
+        "status": "success"
+    },
+    (0, 3): {
+        "score": 89,
+        "type": "🚀 คู่หูบุกเบิกสิ่งใหม่ (Visionary & Pathfinder Duo)",
+        "detail": "Creative จุดประกายไอเดียนวัตกรรม และ Leader ช่วยเคาะเลือกไอเดียที่ดีที่สุดพร้อมแปลงเป็น Action Plan ที่ทำได้จริง",
+        "status": "success"
+    },
+    (1, 1): {
+        "score": 74,
+        "type": "🔍 คู่หูสายตรรกะเข้มข้น (Deep Analytical Duo)",
+        "detail": "คิดวิเคราะห์ได้ลึกซึ้ง ตรวจสอบโค้ดและข้อมูลแม่นยำ แต่อาจเกิดภาวะคิดเยอะจนเริ่มช้า (Analysis Paralysis) ควรตั้ง Timebox เสมอ",
+        "status": "info"
+    },
+    (1, 2): {
+        "score": 88,
+        "type": "🤝 คู่หูคุณภาพและความเข้าอกเข้าใจ (Logic & Empathy Duo)",
+        "detail": "Analytical มีความแม่นยำเรื่องข้อมูลเชิงลึก ขณะที่ Team Player ช่วยสื่อสารให้ทุกคนในทีมเข้าใจง่ายและนำไปใช้ได้อย่างอบอุ่น",
+        "status": "success"
+    },
+    (1, 3): {
+        "score": 92,
+        "type": "💡 คู่หูนวัตกรรมสมบูรณ์แบบ (Form & Function Duo)",
+        "detail": "Creative คิดนอกกรอบเพื่อออกแบบประสบการณ์ที่น่าตื่นเต้น และ Analytical ช่วยออกแบบระบบโครงสร้างทางเทคนิคให้ใช้งานได้จริง",
+        "status": "success"
+    },
+    (2, 2): {
+        "score": 83,
+        "type": "💖 คู่หูสร้างบรรยากาศเชิงบวก (Harmony Champions)",
+        "detail": "ทีมมีความสุข อบอุ่น สื่อสารราบรื่น ไม่มีใครเครียด แต่อาจขาดคนกล้าฟันธงหรือตัดช้อยส์งาน ต้องการคนช่วยเคาะเส้นตาย",
+        "status": "info"
+    },
+    (2, 3): {
+        "score": 90,
+        "type": "🎨 คู่หูสร้างสรรค์และมีส่วนร่วม (Creative Facilitation Duo)",
+        "detail": "Creative เสนอแนวคิดแปลกใหม่ Team Player สนับสนุนและกระตุ้นให้ทุกคนในทีมร่วมแสดงความคิดเห็นอย่างเปิดกว้าง",
+        "status": "success"
+    },
+    (3, 3): {
+        "score": 75,
+        "type": "✨ คู่หูระดมไอเดียไม่รู้จบ (Brainstorming Powerhouse)",
+        "detail": "มีไอเดียสร้างสรรค์พรั่งพรู สนุกสนานกับการระดมสมอง แต่อาจหลุดโฟกัสหรือเปลี่ยนแผนบ่อย ต้องมีคนช่วยสรุปเป็นงานประจำ",
+        "status": "info"
+    }
+}
+
+def get_role_synergy(role_a, role_b):
+    pair_key = (min(role_a, role_b), max(role_a, role_b))
+    return ROLE_SYNERGY_RULES.get(pair_key, {
+        "score": 80,
+        "type": "🤝 ทำงานร่วมกันได้ดี",
+        "detail": "มีจุดแข็งคนละด้านที่เกื้อหนุนกัน",
+        "status": "info"
+    })
+
+EXTENDED_PALETTE = [
+    '#E63946', '#1D3557', '#2A9D8F', '#F4A261', '#9B5DE5', '#00BBF9',
+    '#FF006E', '#3A86FF', '#FB5607', '#8338EC', '#06D6A0', '#118AB2',
+    '#FFBE0B', '#3D348B', '#7678ED', '#F35B04', '#17C3B2', '#227C9D',
+    '#FE6D73', '#FFCB77', '#457B9D', '#A8DADC', '#E76F51', '#264653'
+]
 
 # --- BENCHMARK CLUSTERING MODEL TRAINING ---
 @st.cache_resource
@@ -233,17 +629,149 @@ def predict_profile(user_features):
     
     return cluster_id, radar_values, u_pca, distances
 
-# --- HEADER ---
-st.title("🧠 Personality & Team Fit Analyzer (AI & Machine Learning)")
-st.markdown("ระบบวิเคราะห์สไตล์การทำงาน บุคลิกภาพ และความเข้ากันได้ของทีมงาน ด้วย **AI NLP + K-Means Clustering + Explainable AI (XAI)**")
-st.caption("🌐 ขับเคลื่อนด้วย **AIForThai Cloud Service (NECTEC)** & **PyThaiNLP Engine** | สถานะ API: 🟢 Connected")
-st.markdown("---")
+# ==============================================================================
+# 🌗 DAY / NIGHT SWITCH (แทนเมนูธีมเดิมของ Streamlit)
+# ==============================================================================
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+_sp, _sw = st.columns([6, 1.6])
+with _sw:
+    with st.container(key="theme_switch"):
+        st.toggle("โหมดกลางคืน 🌙", key="dark_mode")
+
+IS_DARK = st.session_state.dark_mode
+
+st.markdown("""
+<style>
+.st-key-theme_switch {
+    background: linear-gradient(135deg, #FFFFFF 0%, #F1F5F9 100%);
+    border: 1px solid #E2E8F0;
+    border-radius: 999px;
+    padding: 6px 16px 2px 16px;
+    box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.18);
+    width: fit-content;
+    margin-left: auto;
+    transition: all .25s ease;
+}
+.st-key-theme_switch:hover { box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.35); border-color: #93C5FD; }
+.st-key-theme_switch label p { font-weight: 700; font-size: 13px; color: #1E293B; }
+</style>
+""", unsafe_allow_html=True)
+
+# ---- ตั้งค่ากราฟ Plotly ให้เปลี่ยนตามโหมด ----
+_PLOT_TEMPLATE = "plotly_dark" if IS_DARK else "plotly_white"
+_FONT_COLOR = "#E2E8F0" if IS_DARK else "#1E293B"
+_orig_plotly_chart = st.plotly_chart
+
+def _themed_plotly_chart(fig, *args, **kwargs):
+    fig.update_layout(
+        template=_PLOT_TEMPLATE,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        polar_bgcolor="rgba(0,0,0,0)",
+        font_color=_FONT_COLOR,
+    )
+    kwargs.setdefault("theme", None)  # ใช้ template ของเราแทนธีมอัตโนมัติของ Streamlit
+    return _orig_plotly_chart(fig, *args, **kwargs)
+
+st.plotly_chart = _themed_plotly_chart
+
+if IS_DARK:
+    st.markdown("""
+    <style>
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+        background: #0B1220 !important; color: #E2E8F0 !important;
+    }
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+    .stApp p, .stApp li, .stApp label, .stApp .stMarkdown { color: #E2E8F0; }
+    .stApp small, .stApp [data-testid="stCaptionContainer"] { color: #94A3B8 !important; }
+
+    /* สวิตช์ในโหมดกลางคืน */
+    .st-key-theme_switch {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
+        border-color: #334155 !important;
+        box-shadow: 0 4px 16px -4px rgba(147, 197, 253, 0.25) !important;
+    }
+    .st-key-theme_switch label p { color: #F1F5F9 !important; }
+
+    /* ช่องกรอกข้อมูล */
+    [data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="select"] > div {
+        background-color: #111B2E !important; border-color: #334155 !important;
+    }
+    [data-baseweb="input"] input, [data-baseweb="textarea"] textarea { color: #F1F5F9 !important; }
+    [data-baseweb="popover"] ul, [data-baseweb="menu"] { background: #111B2E !important; }
+    [data-baseweb="popover"] li { color: #E2E8F0 !important; }
+
+    /* ปุ่ม / metric / expander / tab */
+    div[data-testid="stButton"] > button, div[data-testid="stDownloadButton"] > button {
+        background: #162033 !important; color: #E2E8F0 !important; border-color: #334155 !important;
+    }
+    div[data-testid="stButton"] > button:hover { border-color: #60A5FA !important; }
+    div[data-testid="stMetric"] { background: #111B2E !important; border-color: #263449 !important; }
+    div[data-testid="stExpander"] { background: #0F1A2E !important; border-color: #263449 !important; }
+    div[data-testid="stExpander"] summary { color: #E2E8F0 !important; }
+    button[data-baseweb="tab"][aria-selected="true"] { color: #F8FAFC !important; background: rgba(96,165,250,.10); border-bottom-color: #60A5FA !important; }
+    [data-testid="stChatMessage"] { background: #111B2E !important; }
+    [data-testid="stChatInput"] textarea { color: #F1F5F9 !important; }
+
+    /* ตาราง dataframe (วาดด้วย canvas จึงใช้ filter) */
+    [data-testid="stDataFrame"] { filter: invert(0.92) hue-rotate(180deg); border-radius: 10px; }
+
+    /* การ์ด HTML ที่ฮาร์ดโค้ดสีสว่างไว้ → เป็นสีเข้ม */
+    [style*="background-color: #f8fafc" i], [style*="background-color: #ffffff" i],
+    [style*="background-color: #FAFAFA" i], [style*="background-color: #f1f5f9" i]
+        { background-color: #111B2E !important; }
+    [style*="background-color: #f0fdf4" i] { background-color: rgba(34,197,94,.12) !important; }
+    [style*="background-color: #fffbeb" i] { background-color: rgba(245,158,11,.12) !important; }
+    [style*="background-color: #eff6ff" i] { background-color: rgba(59,130,246,.14) !important; }
+    [style*="background-color: #fff7ed" i] { background-color: rgba(249,115,22,.12) !important; }
+    [style*="background-color: #fef2f2" i] { background-color: rgba(239,68,68,.12) !important; }
+    [style*="border: 1px solid #e2e8f0" i] { border-color: #263449 !important; }
+
+    /* ตัวอักษรเข้มในการ์ด → สว่าง */
+    [style*="color: #1e293b" i], [style*="color: #0f172a" i], [style*="color: #334155" i],
+    [style*="color: #475569" i], [style*="color: #111" i], [style*="color: #555" i],
+    [style*="color: #431407" i] { color: #E2E8F0 !important; }
+    [style*="color: #64748b" i], [style*="color: #94a3b8" i] { color: #94A3B8 !important; }
+    [style*="color: #166534" i], [style*="color: #15803d" i] { color: #86EFAC !important; }
+    [style*="color: #92400e" i], [style*="color: #b45309" i] { color: #FCD34D !important; }
+    [style*="color: #1e40af" i], [style*="color: #2563eb" i] { color: #93C5FD !important; }
+    [style*="color: #c2410c" i] { color: #FDBA74 !important; }
+    [style*="color: #991b1b" i], [style*="color: #b91c1c" i], [style*="color: #dc2626" i] { color: #FCA5A5 !important; }
+    [style*="color: #0369a1" i], [style*="color: #0284c7" i] { color: #7DD3FC !important; }
+    [style*="color: #0d9488" i] { color: #5EEAD4 !important; }
+
+    /* แท็กสกิล */
+    .tag-hard { background-color: rgba(59,130,246,.15) !important; color: #93C5FD !important; border-color: rgba(59,130,246,.4) !important; }
+    .tag-soft { background-color: rgba(34,197,94,.15) !important; color: #86EFAC !important; border-color: rgba(34,197,94,.4) !important; }
+    .tag-tool { background-color: rgba(14,165,233,.15) !important; color: #7DD3FC !important; border-color: rgba(14,165,233,.4) !important; }
+    .tag-candidate { background-color: #111B2E !important; color: #E2E8F0 !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- HERO HEADER ---
+st.markdown("""
+<div class="hero-banner">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
+        <div>
+            <h1 class="hero-title">🧠 Personality & Team Fit Analyzer</h1>
+            <p class="hero-subtitle">ระบบประเมินสไตล์การทำงาน บุคลิกภาพ และความเข้ากันได้ของทีมงาน ด้วย <strong>AI NLP + K-Means Clustering + Explainable AI (XAI)</strong></p>
+        </div>
+        <div class="hero-badges">
+            <div class="status-badge"><span class="live-dot"></span> AIForThai API (SSense)</div>
+            <div class="status-badge">✂️ PyThaiNLP Engine</div>
+            <div class="status-badge">🤖 K-Means Clustering</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # --- TABS NAVIGATION ---
 tab1, tab2, tab3, tab4 = st.tabs([
     "👤 1. ประเมินรายบุคคล & AI Explainable",
-    "⚔️ 2. เปรียบเทียบคู่หู (Side-by-Side)",
-    "👥 3. จัดทีม & Role Recommendation",
+    "⚔️ 2. เปรียบเทียบสมาชิก (Side-by-Side — กี่คนก็ได้)",
+    "👥 3. จัดทีม & สกิลแต่ละตำแหน่ง & ความเข้ากันได้",
     "📈 4. สรุปโมเดล ML & Feature Importance"
 ])
 
@@ -550,80 +1078,429 @@ with tab1:
                 st.json(api_res_tab1["raw_response"])
 
 # ==============================================================================
-# TAB 2: SIDE-BY-SIDE COMPARISON & COMPATIBILITY METER
+# TAB 2: SIDE-BY-SIDE MULTI-PERSON COMPARISON (กี่คนก็ได้)
 # ==============================================================================
 with tab2:
-    st.subheader("⚔️ เปรียบเทียบบุคลิกภาพ 2 คน (Side-by-Side Comparison)")
-    st.write("ดูว่าเพื่อนร่วมงาน 2 คนมีสไตล์ที่ส่งเสริมกัน หรือมีจุดไหนที่อาจเกิดความขัดแย้งกัน")
+    st.subheader("⚔️ 2. เปรียบเทียบเพื่อนร่วมงาน (Side-by-Side Comparison — กี่คนก็ได้)")
+    st.markdown("เปรียบเทียบสไตล์การทำงาน บุคลิกภาพ และความเข้ากันได้ระหว่างบุคคลได้ **กี่คนก็ได้ (ไม่จำกัดจำนวน)** พร้อม Radar Chart เปรียบเทียบ, Heatmap ความเข้ากันได้แบบ N × N และระบบเจาะลึกความสัมพันธ์รายคู่")
     
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        name_a = st.text_input("ชื่อคนที่ 1:", "สมชาย (Leader)", key="name_a")
-        text_a = st.text_area("คำอธิบายสไตล์การทำงาน (คนที่ 1):", "ผมมุ่งเน้นผลักดันงานให้เสร็จตามเป้าหมาย ชอบจัดระเบียบ คุมงาน และลงมือทำทันที ลุยไปด้วยกัน", key="text_a")
+    default_candidates = [
+        {"name": "สมชาย (Leader)", "text": "ผมมุ่งเน้นผลักดันงานให้เสร็จตามเป้าหมาย ชอบจัดระเบียบ คุมงาน และลงมือทำทันที ลุยไปด้วยกัน"},
+        {"name": "วิภา (Analytical)", "text": "ฉันชอบวิเคราะห์ข้อมูลอย่างละเอียด ตรวจสอบความถูกต้องและวางแผนป้องกันความเสี่ยงอย่างรอบคอบ"},
+        {"name": "กานต์ (Team Player)", "text": "ผมชอบรับฟังทุกคนในทีม คอยประสานงานและดูแลให้บรรยากาศการทำงานราบรื่นและอบอุ่น ช่วยเหลือกัน"}
+    ]
     
-    with col_p2:
-        name_b = st.text_input("ชื่อคนที่ 2:", "วิภา (Analytical)", key="name_b")
-        text_b = st.text_area("คำอธิบายสไตล์การทำงาน (คนที่ 2):", "ฉันชอบวิเคราะห์ข้อมูลอย่างละเอียด ตรวจสอบความถูกต้องและวางแผนป้องกันความเสี่ยงอย่างรอบคอบ", key="text_b")
-        
-    if st.button("⚖️ เปรียบเทียบทั้งสองคน", key="btn_compare"):
-        with st.spinner("กำลังคำนวณ Compatibility Meter และวิเคราะห์ความเข้ากันได้..."):
-            feat_a, _ = extract_features(text_a, "")
-            feat_b, _ = extract_features(text_b, "")
-            
-            c_id_a, radar_a, _, _ = predict_profile(feat_a)
-            c_id_b, radar_b, _, _ = predict_profile(feat_b)
-            
-            p_a = ROLE_PROFILES[c_id_a]
-            p_b = ROLE_PROFILES[c_id_b]
-            
-            vec_a = np.array(feat_a, dtype=float).reshape(1, -1)
-            vec_b = np.array(feat_b, dtype=float).reshape(1, -1)
-            cos_sim = cosine_similarity(vec_a, vec_b)[0][0]
-            
-            is_complementary = (c_id_a != c_id_b)
-            base_score = float(cos_sim * 60.0) + (35.0 if is_complementary else 20.0)
-            compat_score = int(np.clip(base_score, 40, 98))
-            
-            st.markdown("---")
-            st.markdown(f"### 🤝 Compatibility Percentage Meter: **{compat_score}%**")
-            
-            if compat_score >= 80:
-                st.progress(compat_score / 100.0)
-                st.success("🌟 **ระดับความเข้ากันได้: สูงมาก (High Synergy)** — มีแนวโน้มทำงานร่วมกันได้อย่างมีประสิทธิภาพสูงและเติมเต็มกันได้ดี")
-            elif compat_score >= 60:
-                st.progress(compat_score / 100.0)
-                st.info("⚖️ **ระดับความเข้ากันได้: ปานกลาง (Moderate Synergy)** — ทำงานร่วมกันได้ดี ควรสื่อสารเป้าหมายให้ตรงกันสม่ำเสมอ")
-            else:
-                st.progress(compat_score / 100.0)
-                st.warning("⚠️ **ระดับความเข้ากันได้: ต้องปรับจูน (Needs Alignment)** — สไตล์การทำงานอาจมีความขัดแย้งเชิงกระบวนการ")
-            
-            col_res_a, col_res_b = st.columns(2)
-            with col_res_a:
-                st.markdown(f"**{name_a}**: <span style='color:{p_a['color']}; font-weight:bold;'>{p_a['title']}</span>", unsafe_allow_html=True)
-            with col_res_b:
-                st.markdown(f"**{name_b}**: <span style='color:{p_b['color']}; font-weight:bold;'>{p_b['title']}</span>", unsafe_allow_html=True)
+    if "compare_candidates" not in st.session_state:
+        st.session_state.compare_candidates = [dict(c) for c in default_candidates]
+
+    st.markdown("##### ⚡ Quick Presets (เลือกขนาดกลุ่มตัวอย่างอย่างรวดเร็ว):")
+    p1, p2, p3, p4 = st.columns(4)
+    if p1.button("👥 คู่หู 2 คน (Duo: Leader vs Dev)"):
+        st.session_state.compare_candidates = [
+            {"name": "สมชาย (Leader)", "text": "ผมมุ่งเน้นผลักดันงานให้เสร็จตามเป้าหมาย ชอบจัดระเบียบ คุมงาน และลงมือทำทันที ลุยไปด้วยกัน"},
+            {"name": "วิภา (Analytical)", "text": "ฉันชอบวิเคราะห์ข้อมูลอย่างละเอียด ตรวจสอบความถูกต้องและวางแผนป้องกันความเสี่ยงอย่างรอบคอบ"}
+        ]
+        if "multi_compare_results" in st.session_state:
+            del st.session_state["multi_compare_results"]
+        st.rerun()
+    if p2.button("👨‍👩‍👧 กลุ่ม 3 คน (Trio: Leader, Dev, QA)"):
+        st.session_state.compare_candidates = [
+            {"name": "สมชาย (Leader)", "text": "ผมมุ่งเน้นผลักดันงานให้เสร็จตามเป้าหมาย ชอบจัดระเบียบ คุมงาน และลงมือทำทันที ลุยไปด้วยกัน"},
+            {"name": "วิภา (Analytical)", "text": "ฉันชอบวิเคราะห์ข้อมูลอย่างละเอียด ตรวจสอบความถูกต้องและวางแผนป้องกันความเสี่ยงอย่างรอบคอบ"},
+            {"name": "กานต์ (Team Player)", "text": "ผมชอบรับฟังทุกคนในทีม คอยประสานงานและดูแลให้บรรยากาศการทำงานราบรื่นและอบอุ่น ช่วยเหลือกัน"}
+        ]
+        if "multi_compare_results" in st.session_state:
+            del st.session_state["multi_compare_results"]
+        st.rerun()
+    if p3.button("🧩 กลุ่ม 4 คน (ครบ 4 บทบาทหลัก)"):
+        st.session_state.compare_candidates = [
+            {"name": "สมชาย (Leader)", "text": "ผมมุ่งเน้นผลักดันงานให้เสร็จตามเป้าหมาย ชอบจัดระเบียบ คุมงาน และลงมือทำทันที ลุยไปด้วยกัน"},
+            {"name": "วิภา (Analytical)", "text": "ฉันชอบวิเคราะห์ข้อมูลอย่างละเอียด ตรวจสอบความถูกต้องและวางแผนป้องกันความเสี่ยงอย่างรอบคอบ"},
+            {"name": "กานต์ (Team Player)", "text": "ผมชอบรับฟังทุกคนในทีม คอยประสานงานและดูแลให้บรรยากาศการทำงานราบรื่นและอบอุ่น ช่วยเหลือกัน"},
+            {"name": "เมษา (Creative)", "text": "ฉันชอบคิดนอกกรอบ ออกแบบไอเดียใหม่ๆ ทดลองเครื่องมือแปลกใหม่ และสร้างสีสันให้โปรเจกต์"}
+        ]
+        if "multi_compare_results" in st.session_state:
+            del st.session_state["multi_compare_results"]
+        st.rerun()
+    if p4.button("🚀 ทีม 5 คน (Cross-Functional Squad)"):
+        st.session_state.compare_candidates = [
+            {"name": "คนึง (Product Lead)", "text": "ผมชอบวางแผนทิศทาง จัดการเวลา ติดตามความคืบหน้า และผลักดันให้โปรเจกต์สำเร็จตามเป้าหมาย"},
+            {"name": "วิโรจน์ (Backend Dev)", "text": "ผมชอบคิดวิเคราะห์ตรรกะ ออกแบบระบบฐานข้อมูลและโครงสร้าง API อย่างรอบคอบแม่นยำ"},
+            {"name": "ธิดา (Data Scientist)", "text": "ฉันชอบค้นหา Insight จากข้อมูล ใช้สถิติและ Machine Learning เพื่อวิเคราะห์ปัญหาเชิงลึก"},
+            {"name": "กัญญา (Scrum / QA)", "text": "ฉันคอยประสานงาน ช่วยเหลือทุกคนในทีม จัดการประชุมย้อนหลัง และทดสอบระบบให้ราบรื่น"},
+            {"name": "ปรีชา (UI/UX Designer)", "text": "ผมชอบออกแบบประสบการณ์ผู้ใช้ คิดค้นรูปแบบการปฏิสัมพันธ์ที่สวยงามและใช้งานง่าย"}
+        ]
+        if "multi_compare_results" in st.session_state:
+            del st.session_state["multi_compare_results"]
+        st.rerun()
+
+    n_cand = len(st.session_state.compare_candidates)
+    
+    # Active candidate chip bar
+    chips_html = "".join([
+        f"<span class='tag-candidate' style='border-left: 4px solid {EXTENDED_PALETTE[i % len(EXTENDED_PALETTE)]};'>"
+        f"<span style='width: 8px; height: 8px; border-radius: 50%; background-color: {EXTENDED_PALETTE[i % len(EXTENDED_PALETTE)]}; display: inline-block;'></span> "
+        f"{c['name']}</span>"
+        for i, c in enumerate(st.session_state.compare_candidates)
+    ])
+    st.markdown(f"<div style='display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 12px 0;'>{chips_html}</div>", unsafe_allow_html=True)
+
+    # Collapsible candidate configuration expander
+    is_exp = "multi_compare_results" not in st.session_state
+    with st.expander(f"📝 จัดการและแก้ไขข้อมูลสมาชิก ({n_cand} คน — กดเปิด/ซ่อนฟอร์มได้ตลอดเวลา)", expanded=is_exp):
+        btn_m1, btn_m2, btn_m3 = st.columns([1.5, 1.5, 2])
+        with btn_m1:
+            if st.button("➕ เพิ่มคนเปรียบเทียบ (+1 คน)", key="btn_add_cand"):
+                idx_new = len(st.session_state.compare_candidates) + 1
+                st.session_state.compare_candidates.append({
+                    "name": f"สมาชิกคนที่ {idx_new}",
+                    "text": "ผมชอบเรียนรู้สิ่งใหม่ ร่วมมือกับเพื่อนร่วมทีม และลงมือแก้ไขปัญหาให้สำเร็จไปด้วยกัน"
+                })
+                st.rerun()
+        with btn_m2:
+            if st.button("➖ ลบคนล่าสุด", key="btn_del_cand"):
+                if len(st.session_state.compare_candidates) > 2:
+                    st.session_state.compare_candidates.pop()
+                    st.rerun()
+                else:
+                    st.warning("ต้องมีอย่างน้อย 2 คนเพื่อทำการเปรียบเทียบ")
+        with btn_m3:
+            if st.button("🔄 รีเซ็ตเป็นตัวอย่างเริ่มต้น (3 คน)", key="btn_reset_cand"):
+                st.session_state.compare_candidates = [dict(c) for c in default_candidates]
+                if "multi_compare_results" in st.session_state:
+                    del st.session_state["multi_compare_results"]
+                st.rerun()
+
+        st.markdown(f"**ป้อนข้อความอธิบายสไตล์การทำงานของแต่ละคน:**")
+        # Render candidate input cards neatly in rows of 3 columns
+        for row_start in range(0, n_cand, 3):
+            row_indices = list(range(row_start, min(row_start + 3, n_cand)))
+            cols = st.columns(len(row_indices))
+            for col_i, idx in enumerate(row_indices):
+                cand = st.session_state.compare_candidates[idx]
+                cand_color = EXTENDED_PALETTE[idx % len(EXTENDED_PALETTE)]
+                with cols[col_i]:
+                    st.markdown(f"""
+                    <div style="background-color: #f8fafc; border-top: 3px solid {cand_color}; padding: 8px 12px 2px 12px; border-radius: 8px; margin-bottom: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: #334155;">👤 คนที่ {idx + 1}</strong>
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: {cand_color};"></span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    c_name = st.text_input(f"ชื่อคนที่ {idx+1}:", value=cand["name"], key=f"cand_name_{idx}")
+                    c_text = st.text_area(f"สไตล์การทำงาน (คนที่ {idx+1}):", value=cand["text"], key=f"cand_text_{idx}", height=90)
+                    st.session_state.compare_candidates[idx]["name"] = c_name
+                    st.session_state.compare_candidates[idx]["text"] = c_text
+                    if n_cand > 2:
+                        if st.button(f"🗑️ ลบคนที่ {idx+1}", key=f"del_single_{idx}"):
+                            st.session_state.compare_candidates.pop(idx)
+                            st.rerun()
+
+    if st.button(f"⚖️ ประมวลผลเปรียบเทียบทั้ง {n_cand} คน (Compare All)", key="btn_run_compare", type="primary", use_container_width=True):
+        with st.spinner(f"กำลังประมวลผล NLP, Sentiment และ Radar Chart สำหรับ {n_cand} คน..."):
+            results = []
+            for idx, cand in enumerate(st.session_state.compare_candidates):
+                feats, _ = extract_features(cand["text"], "")
+                c_id, radar_vals, _, _ = predict_profile(feats)
+                prof = ROLE_PROFILES[c_id]
+                results.append({
+                    "name": cand["name"],
+                    "features": feats,
+                    "cluster_id": c_id,
+                    "profile": prof,
+                    "radar": radar_vals,
+                    "color": EXTENDED_PALETTE[idx % len(EXTENDED_PALETTE)]
+                })
                 
-            fig_compare = go.Figure()
-            fig_compare.add_trace(go.Scatterpolar(
-                r=radar_a, theta=CATEGORIES, fill='toself', name=name_a, line_color='#E63946'
-            ))
-            fig_compare.add_trace(go.Scatterpolar(
-                r=radar_b, theta=CATEGORIES, fill='toself', name=name_b, line_color='#1D3557'
-            ))
-            fig_compare.update_layout(
-                polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-                showlegend=True,
-                title="เปรียบเทียบ Radar Chart ระหว่าง 2 บุคคล"
+            st.session_state["multi_compare_results"] = results
+            st.rerun()
+
+    if "multi_compare_results" in st.session_state:
+        results = st.session_state["multi_compare_results"]
+        n_res = len(results)
+        
+        # Build Pairwise Matrix and records
+        names = [r["name"] for r in results]
+        matrix_data = np.zeros((n_res, n_res))
+        pair_records = []
+        for i in range(n_res):
+            for j in range(n_res):
+                if i == j:
+                    matrix_data[i][j] = 100
+                else:
+                    v_i = np.array(results[i]["features"], dtype=float).reshape(1, -1)
+                    v_j = np.array(results[j]["features"], dtype=float).reshape(1, -1)
+                    cos_s = cosine_similarity(v_i, v_j)[0][0]
+                    syn_info = get_role_synergy(results[i]["cluster_id"], results[j]["cluster_id"])
+                    role_base = syn_info["score"]
+                    b_score = (cos_s * 40.0) + (role_base * 0.6)
+                    final_p_score = int(np.clip(b_score, 40, 99))
+                    matrix_data[i][j] = final_p_score
+                    if i < j:
+                        pair_records.append({
+                            "i": i,
+                            "j": j,
+                            "p1": results[i]["name"],
+                            "p2": results[j]["name"],
+                            "r1": results[i]["profile"]["title"].split('(')[0],
+                            "r2": results[j]["profile"]["title"].split('(')[0],
+                            "c1": results[i]["profile"]["color"],
+                            "c2": results[j]["profile"]["color"],
+                            "score": final_p_score,
+                            "type": syn_info["type"],
+                            "detail": syn_info["detail"],
+                            "status": syn_info["status"]
+                        })
+                        
+        upper_tri = [matrix_data[i][j] for i in range(n_res) for j in range(i+1, n_res)]
+        avg_compat = int(np.mean(upper_tri)) if upper_tri else 100
+
+        st.markdown(f"#### 👤 สรุปบทบาทของสมาชิกทั้ง {n_res} คน:")
+        for r_start in range(0, n_res, 4):
+            r_inds = list(range(r_start, min(r_start + 4, n_res)))
+            cols = st.columns(len(r_inds))
+            for c_i, i in enumerate(r_inds):
+                r = results[i]
+                with cols[c_i]:
+                    st.markdown(f"""
+                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid {r['color']}; padding: 12px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <h4 style="margin: 0; color: #1e293b; font-size: 15px;">{r['name']}</h4>
+                        <p style="color: {r['profile']['color']}; font-weight: bold; margin: 4px 0 2px 0; font-size: 13px;">{r['profile']['title']}</p>
+                        <small style="color: #64748b;">ตำแหน่ง: <strong>{r['profile']['job_title']}</strong></small><br/>
+                        <small style="color: #94a3b8;">สายงาน: {r['profile']['track']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        # SUB-TABS FOR CLEAN NAVIGATION
+        sub2_t1, sub2_t2, sub2_t3, sub2_t4 = st.tabs([
+            "🕸️ 1. Multi-Radar & Matrix", 
+            "🌟 2. Synergy & Dynamic Insights", 
+            "🔍 3. เจาะลึกคู่หู (Duo Deep-Dive)", 
+            "📋 4. ข้อมูลสถิติและตัวแปร NLP"
+        ])
+        
+        # Sub-tab 1: Multi-Radar & Compatibility Matrix
+        with sub2_t1:
+            col_radar, col_matrix = st.columns([1, 1])
+            with col_radar:
+                st.markdown(f"##### 🕸️ Multi-Person Radar Chart ({n_res} คน)")
+                fig_multi = go.Figure()
+                for r in results:
+                    fig_multi.add_trace(go.Scatterpolar(
+                        r=r["radar"],
+                        theta=CATEGORIES,
+                        fill='toself',
+                        name=r["name"],
+                        line_color=r["color"],
+                        opacity=0.3
+                    ))
+                fig_multi.update_layout(
+                    polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+                    showlegend=True,
+                    height=max(430, 360 + min(n_res, 12) * 12),
+                    margin=dict(l=20, r=20, t=30, b=20)
+                )
+                st.plotly_chart(fig_multi, use_container_width=True)
+
+            with col_matrix:
+                st.markdown(f"##### 🤝 Pairwise Compatibility Matrix ({n_res} × {n_res})")
+                df_matrix = pd.DataFrame(matrix_data, index=names, columns=names)
+                fig_heat = px.imshow(
+                    df_matrix,
+                    text_auto=True,
+                    color_continuous_scale="Tealgrn",
+                    aspect="auto",
+                    labels=dict(color="Compatibility (%)")
+                )
+                fig_heat.update_layout(height=max(430, 360 + min(n_res, 12) * 12), margin=dict(l=20, r=20, t=30, b=20))
+                st.plotly_chart(fig_heat, use_container_width=True)
+
+            st.markdown(f"### 🌟 คะแนนความเข้ากันได้เฉลี่ยของทั้งกลุ่ม: **{avg_compat}%**")
+            st.progress(avg_compat / 100.0)
+
+        # Sub-tab 2: Synergy & Friction Insights
+        with sub2_t2:
+            if pair_records:
+                sorted_pairs = sorted(pair_records, key=lambda x: x["score"], reverse=True)
+                best_pair = sorted_pairs[0]
+                worst_pair = sorted_pairs[-1]
+                
+                syn_col1, syn_col2 = st.columns(2)
+                with syn_col1:
+                    st.markdown(f"""
+                    <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 16px;">
+                        <h4 style="color: #166534; margin: 0; font-size: 16px;">🏆 คู่ที่มี Synergy สูงสุดในกลุ่ม ({best_pair['score']}%)</h4>
+                        <p style="margin: 8px 0 4px 0; color: #1e293b; font-size: 15px;"><strong>{best_pair['p1']}</strong> ({best_pair['r1']}) & <strong>{best_pair['p2']}</strong> ({best_pair['r2']})</p>
+                        <p style="color: #15803d; font-weight: bold; margin: 0 0 6px 0; font-size: 13px;">{best_pair['type']}</p>
+                        <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.5;">{best_pair['detail']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with syn_col2:
+                    st.markdown(f"""
+                    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px;">
+                        <h4 style="color: #92400e; margin: 0; font-size: 16px;">⚡ คู่ที่ต้องปรับจูนสไตล์การทำงานร่วมกัน ({worst_pair['score']}%)</h4>
+                        <p style="margin: 8px 0 4px 0; color: #1e293b; font-size: 15px;"><strong>{worst_pair['p1']}</strong> ({worst_pair['r1']}) & <strong>{worst_pair['p2']}</strong> ({worst_pair['r2']})</p>
+                        <p style="color: #b45309; font-weight: bold; margin: 0 0 6px 0; font-size: 13px;">{worst_pair['type']}</p>
+                        <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.5;">{worst_pair['detail']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("#### 💡 บทวิเคราะห์พลวัตการทำงานร่วมกัน (Group Dynamics Analysis):")
+            distinct_roles = set(r["cluster_id"] for r in results)
+            role_counts = pd.Series([r["cluster_id"] for r in results]).value_counts()
+            summary_parts = [f"{ROLE_PROFILES[k]['title'].split('(')[0]}: {v} คน" for k, v in role_counts.items()]
+            st.markdown(f"**สัดส่วนบทบาทในกลุ่มนี้:** {' | '.join(summary_parts)}")
+            
+            if len(distinct_roles) == n_res and n_res <= 4:
+                st.success(f"🎉 **ความหลากหลายสมบูรณ์แบบ!** ทั้ง {n_res} คนมีบทบาทแตกต่างกันอย่างชัดเจน ทุกคนจะมีจุดแข็งที่ช่วยอุดรอยรั่วและขับเคลื่อนงานในแต่ละมิติได้อย่างลงตัว")
+            elif len(distinct_roles) >= 3:
+                st.info(f"💡 กลุ่มนี้มีความหลากหลายที่ดี (พบ {len(distinct_roles)} จาก 4 บทบาทหลัก) มีความสมดุลระหว่างการขับเคลื่อนงาน การวิเคราะห์ และการประสานงาน")
+            else:
+                st.warning(f"⚠️ กลุ่มนี้มีความกระจุกตัวของบทบาท (พบเพียง {len(distinct_roles)} บทบาทจาก {n_res} คน) อาจต้องกระจายบทบาทความรับผิดชอบให้ชัดเจนเพื่อไม่ให้เกิดการทับซ้อน")
+
+        # Sub-tab 3: Interactive Duo Deep-Dive
+        with sub2_t3:
+            st.markdown("#### 🔍 เจาะลึกความเข้ากันได้แบบคู่หู 1 ต่อ 1 (Interactive Duo Inspector)")
+            st.write("เลือกสมาชิก 2 คนที่ต้องการเจาะลึกเพื่อเปรียบเทียบเรดาร์แบบ 1-on-1 และดูคำแนะนำในการร่วมงานอย่างละเอียด")
+            
+            col_sel1, col_sel2 = st.columns(2)
+            with col_sel1:
+                duo_name1 = st.selectbox("เลือกคนที่ 1:", names, index=0, key="duo_sel_1")
+            with col_sel2:
+                duo_name2 = st.selectbox("เลือกคนที่ 2:", names, index=min(1, len(names)-1), key="duo_sel_2")
+                
+            idx1 = names.index(duo_name1)
+            idx2 = names.index(duo_name2)
+            
+            if idx1 == idx2:
+                st.info("ℹ️ กรุณาเลือกสมาชิก 2 คนที่แตกต่างกันเพื่อดูการเปรียบเทียบคู่หู")
+            else:
+                c1_res = results[idx1]
+                c2_res = results[idx2]
+                duo_score = int(matrix_data[idx1][idx2])
+                duo_syn = get_role_synergy(c1_res["cluster_id"], c2_res["cluster_id"])
+                
+                # Duo Score Banner
+                if duo_score >= 85:
+                    duo_badge = "🟢 คู่หูพลังบวกสูง (High Synergy Duo)"
+                    duo_badge_bg = "#f0fdf4"
+                    duo_badge_border = "#86efac"
+                    duo_badge_color = "#166534"
+                elif duo_score >= 70:
+                    duo_badge = "🟡 คู่หูสมดุลเกื้อหนุน (Balanced Duo)"
+                    duo_badge_bg = "#eff6ff"
+                    duo_badge_border = "#93c5fd"
+                    duo_badge_color = "#1e40af"
+                else:
+                    duo_badge = "🟠 คู่หูที่ต้องปรับจูน (Alignment Needed)"
+                    duo_badge_bg = "#fffbeb"
+                    duo_badge_border = "#fde68a"
+                    duo_badge_color = "#92400e"
+
+                st.markdown(f"""
+                <div style="background-color: {duo_badge_bg}; border: 1px solid {duo_badge_border}; border-radius: 12px; padding: 14px 20px; margin: 12px 0 16px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <span style="font-size: 13px; font-weight: bold; color: {duo_badge_color};">{duo_badge}</span>
+                            <h3 style="margin: 4px 0 0 0; color: #0f172a;">{duo_name1} ⚔️ {duo_name2}</h3>
+                            <p style="margin: 4px 0 0 0; color: #475569; font-size: 13px;">{duo_syn['type']}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 28px; font-weight: 800; color: {duo_badge_color};">{duo_score}%</span><br/>
+                            <small style="color: #64748b;">Compatibility Score</small>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col_d_rad, col_d_desc = st.columns([1, 1])
+                with col_d_rad:
+                    st.markdown("##### 🕸️ Dual Radar Overlay (เปรียบเทียบ 2 คน)")
+                    fig_duo = go.Figure()
+                    fig_duo.add_trace(go.Scatterpolar(
+                        r=c1_res["radar"],
+                        theta=CATEGORIES,
+                        fill='toself',
+                        name=duo_name1,
+                        line_color=c1_res["color"],
+                        opacity=0.35
+                    ))
+                    fig_duo.add_trace(go.Scatterpolar(
+                        r=c2_res["radar"],
+                        theta=CATEGORIES,
+                        fill='toself',
+                        name=duo_name2,
+                        line_color=c2_res["color"],
+                        opacity=0.35
+                    ))
+                    fig_duo.update_layout(
+                        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+                        showlegend=True,
+                        height=360,
+                        margin=dict(l=20, r=20, t=20, b=20)
+                    )
+                    st.plotly_chart(fig_duo, use_container_width=True)
+                    
+                with col_d_desc:
+                    st.markdown("##### 🤝 รายละเอียดการทำงานร่วมกัน:")
+                    st.markdown(f"**💡 รูปแบบความสัมพันธ์:**\n{duo_syn['detail']}")
+                    
+                    st.markdown(f"""
+                    <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 10px 14px; border-radius: 6px; margin: 10px 0;">
+                        <strong style="color: #1e40af; font-size: 13px;">💪 จุดเกื้อหนุนเมื่อจับคู่กัน:</strong>
+                        <ul style="margin: 4px 0 0 0; padding-left: 18px; font-size: 13px; color: #334155;">
+                            <li><strong>{duo_name1}:</strong> ช่วยเสริมด้าน {c1_res['profile']['strengths']}</li>
+                            <li><strong>{duo_name2}:</strong> ช่วยเติมเต็มด้าน {c2_res['profile']['strengths']}</li>
+                        </ul>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.markdown(f"""
+                    <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 10px 14px; border-radius: 6px; margin: 10px 0;">
+                        <strong style="color: #c2410c; font-size: 13px;">🛡️ ข้อแนะนำในการสื่อสารและป้องกันความขัดแย้ง:</strong>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #431407;">
+                            ระวังจุดที่อาจมองข้ามร่วมกัน: {c1_res['profile']['blindspots']} และ {c2_res['profile']['blindspots']} — ควรกำหนดขอบเขตความรับผิดชอบให้ชัดเจนตั้งแต่เริ่มโปรเจกต์
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        # Sub-tab 4: Statistical & Linguistic NLP Features
+        with sub2_t4:
+            st.markdown("##### 📊 ตารางเปรียบเทียบ Feature ทางภาษาและสถิติของทุกคน:")
+            table_rows = []
+            for r in results:
+                table_rows.append({
+                    "ชื่อ": r["name"],
+                    "บทบาท (Role)": r["profile"]["title"].split('(')[0],
+                    "ตำแหน่งแนะนำ": r["profile"]["job_title"],
+                    "สายงาน (Track)": r["profile"]["track"],
+                    "ความยาวข้อความ": r["features"][0],
+                    "จำนวนคำ (PyThaiNLP)": r["features"][1],
+                    "ความใส่ใจทีม (We/I)": f"{r['features'][2]:.2f}",
+                    "Sentiment (AIForThai)": f"{r['features'][3]:.1f}",
+                    "คำกริยาลงมือทำ": r["features"][4]
+                })
+            df_comp = pd.DataFrame(table_rows)
+            st.dataframe(df_comp, use_container_width=True, hide_index=True)
+            
+            csv_data = df_comp.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label="📥 ดาวน์โหลดตารางสถิติ (CSV)",
+                data=csv_data,
+                file_name="team_candidates_comparison.csv",
+                mime="text/csv",
+                key="dl_comp_csv"
             )
-            st.plotly_chart(fig_compare, use_container_width=True)
 
 # ==============================================================================
-# TAB 3: TEAM BALANCE SIMULATOR & ROLE RECOMMENDATION
+# TAB 3: TEAM BALANCE, ROLE SKILL SPECIFICATION & TEAM COMPATIBILITY
 # ==============================================================================
 with tab3:
-    st.subheader("👥 จำลองการจัดทีม & แนะนำตำแหน่งจริง (Team Balance & Role Recommendation)")
-    st.write("จำลองการจัดทีมของโปรเจกต์คุณ และให้ AI แนะนำบทบาทที่เหมาะสมที่สุดของแต่ละคน")
-    
+    st.subheader("👥 3. จัดทีม, สกิลแต่ละตำแหน่ง & วิเคราะห์ความเข้ากันได้ของทีม (Team Fit & Compatibility)")
+    st.markdown("จำลองการจัดทีมของโปรเจกต์คุณ วิเคราะห์ **ความเข้ากันได้ของทีม (Team Compatibility)**, ตรวจสอบ **สกิลที่จำเป็นของแต่ละตำแหน่ง (Skill Requirements)**, และค้นหาจุดแข็ง/ช่องว่างทักษะ (Skill Gaps)")
+
     default_team = [
         {"ชื่อ": "สมชาย (มุ่งมั่น)", "บทบาท": 0},
         {"ชื่อ": "วิภา (รอบคอบ)", "บทบาท": 1},
@@ -639,8 +1516,8 @@ with tab3:
     }
     
     st.markdown("##### ⚡ Quick Presets (ทดลองสถานการณ์จำลอง):")
-    pcol1, pcol2, pcol3 = st.columns(3)
-    if pcol1.button("🟢 ทีมสมดุลครบ 4 ด้าน (Ideal Team)"):
+    pcol1, pcol2, pcol3, pcol4, pcol5 = st.columns(5)
+    if pcol1.button("🟢 ทีมสมดุล 4 ด้าน (Ideal)"):
         st.session_state.team_members = [
             {"ชื่อ": "คนึง (Leader)", "บทบาท": 0},
             {"ชื่อ": "วิโรจน์ (Analytical)", "บทบาท": 1},
@@ -648,7 +1525,16 @@ with tab3:
             {"ชื่อ": "ปรีชา (Creative)", "บทบาท": 3}
         ]
         st.rerun()
-    if pcol2.button("🔴 ทีมผู้นำซ้ำซ้อน (3 Leaders - High Risk)"):
+    if pcol2.button("🚀 Agile Squad (5 คน)"):
+        st.session_state.team_members = [
+            {"ชื่อ": "สมชาย (Project Lead)", "บทบาท": 0},
+            {"ชื่อ": "วิภา (Backend Dev)", "บทบาท": 1},
+            {"ชื่อ": "อานนท์ (Data Analyst)", "บทบาท": 1},
+            {"ชื่อ": "กานต์ (QA & Scrum)", "บทบาท": 2},
+            {"ชื่อ": "เมษา (UX Designer)", "บทบาท": 3}
+        ]
+        st.rerun()
+    if pcol3.button("🔴 ผู้นำซ้ำซ้อน (High Risk)"):
         st.session_state.team_members = [
             {"ชื่อ": "สมศักดิ์ (Leader 1)", "บทบาท": 0},
             {"ชื่อ": "อำนาจ (Leader 2)", "บทบาท": 0},
@@ -656,7 +1542,7 @@ with tab3:
             {"ชื่อ": "นารี (Team Player)", "บทบาท": 2}
         ]
         st.rerun()
-    if pcol3.button("🟡 ทีมขาดนักวิเคราะห์ (Missing Analytical)"):
+    if pcol4.button("🟡 ขาดนักวิเคราะห์ (Missing Data)"):
         st.session_state.team_members = [
             {"ชื่อ": "สมชาย (Leader)", "บทบาท": 0},
             {"ชื่อ": "นก (Creative)", "บทบาท": 3},
@@ -664,92 +1550,448 @@ with tab3:
             {"ชื่อ": "นุช (Team Player)", "บทบาท": 2}
         ]
         st.rerun()
+    if pcol5.button("💡 ทีมสตาร์ทอัพ (Innovation)"):
+        st.session_state.team_members = [
+            {"ชื่อ": "ธนา (Founder/Leader)", "บทบาท": 0},
+            {"ชื่อ": "มินตรา (Product Designer)", "บทบาท": 3},
+            {"ชื่อ": "ภานุ (Creative Strategist)", "บทบาท": 3},
+            {"ชื่อ": "ชลธิชา (Team Coordinator)", "บทบาท": 2}
+        ]
+        st.rerun()
 
     if "team_members" not in st.session_state:
-        st.session_state.team_members = default_team
+        st.session_state.team_members = [dict(m) for m in default_team]
 
-    st.markdown("##### 👥 รายชื่อสมาชิกในทีมปัจจุบัน:")
-    cols = st.columns(4)
-    for idx, member in enumerate(st.session_state.team_members):
-        with cols[idx % 4]:
-            st.text_input(f"ชื่อคนที่ {idx+1}", value=member["ชื่อ"], key=f"mem_name_{idx}")
-            st.selectbox(f"บทบาทของคนที่ {idx+1}", options=list(role_options.keys()), 
-                         format_func=lambda x: role_options[x], 
-                         index=member["บทบาท"], key=f"mem_role_{idx}")
+    n_team = len(st.session_state.team_members)
 
-    btn_col1, btn_col2 = st.columns([1, 4])
-    with btn_col1:
-        if st.button("➕ เพิ่มสมาชิกในทีม", key="add_mem"):
-            if len(st.session_state.team_members) < 8:
-                st.session_state.team_members.append({"ชื่อ": f"สมาชิก {len(st.session_state.team_members)+1}", "บทบาท": 2})
+    # Active team chips bar
+    team_chips_html = "".join([
+        f"<span class='tag-candidate' style='border-left: 4px solid {ROLE_PROFILES[m['บทบาท']]['color']};'>"
+        f"<span style='width: 8px; height: 8px; border-radius: 50%; background-color: {ROLE_PROFILES[m['บทบาท']]['color']}; display: inline-block;'></span> "
+        f"{m['ชื่อ']} <small style='color: #64748b;'>({ROLE_PROFILES[m['บทบาท']]['short_title']})</small></span>"
+        for m in st.session_state.team_members
+    ])
+    st.markdown(f"<div style='display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 12px 0;'>{team_chips_html}</div>", unsafe_allow_html=True)
+
+    # Collapsible team configuration expander
+    with st.expander(f"⚙️ ปรับแต่งสมาชิกและบทบาทในทีม ({n_team} คน — กดเปิด/ซ่อนฟอร์มได้ตลอดเวลา)", expanded=False):
+        btn_col1, btn_col2, btn_col3 = st.columns([1.5, 1.5, 3])
+        with btn_col1:
+            if st.button("➕ เพิ่มสมาชิกในทีม", key="add_mem"):
+                if len(st.session_state.team_members) < 12:
+                    st.session_state.team_members.append({"ชื่อ": f"สมาชิก {len(st.session_state.team_members)+1}", "บทบาท": 2})
+                    st.rerun()
+                else:
+                    st.warning("สามารถเพิ่มสมาชิกได้สูงสุด 12 คน")
+        with btn_col2:
+            if st.button("➖ ลบสมาชิกล่าสุด", key="del_last_mem"):
+                if len(st.session_state.team_members) > 2:
+                    st.session_state.team_members.pop()
+                    st.rerun()
+                else:
+                    st.warning("ต้องมีสมาชิกอย่างน้อย 2 คน")
+        with btn_col3:
+            if st.button("🔄 รีเซ็ตทีมเริ่มต้น (4 คน)", key="reset_mem"):
+                st.session_state.team_members = [dict(m) for m in default_team]
                 st.rerun()
-            else:
-                st.warning("สามารถเพิ่มสมาชิกได้สูงสุด 8 คน")
-    with btn_col2:
-        if st.button("🔄 รีเซ็ตทีมเริ่มต้น", key="reset_mem"):
-            st.session_state.team_members = default_team
-            st.rerun()
 
-    st.markdown("---")
-    if st.button("📊 วิเคราะห์ความสมดุลและแนะนำตำแหน่ง (Analyze & Recommend)", key="btn_team_eval"):
-        current_names = [st.session_state[f"mem_name_{idx}"] for idx in range(len(st.session_state.team_members))]
-        current_roles = [st.session_state[f"mem_role_{idx}"] for idx in range(len(st.session_state.team_members))]
-        role_counts = pd.Series(current_roles).value_counts()
-        
-        unique_roles = len(role_counts)
-        balance_score = int((unique_roles / 4.0) * 100)
-        
-        st.markdown(f"### คะแนนความสมดุลของทีม: **{balance_score}%**")
-        st.progress(balance_score / 100.0)
-        
-        # 5. 🏆 Team Role Recommendation
-        st.markdown("### 🏆 5. AI Team Role Recommendation (การจัดสรรตำแหน่งจริงในโปรเจกต์)")
-        rec_cols = st.columns(len(current_names) if len(current_names) <= 4 else 4)
-        for i, (name, r_id) in enumerate(zip(current_names, current_roles)):
-            p = ROLE_PROFILES[r_id]
-            with rec_cols[i % 4]:
-                st.markdown(
-                    f"""
-                    <div style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; border-top: 4px solid {p['color']}; margin-bottom: 12px;">
-                        <h4 style="margin: 0; color: #1e293b;">👤 {name}</h4>
-                        <p style="color: {p['color']}; font-weight: bold; margin: 4px 0;">ตำแหน่ง: {p['job_title']}</p>
-                        <small style="color: #64748b;">เหตุผล: มีจุดแข็งด้าน {p['strengths'][:45]}...</small>
+        st.markdown(f"**กำหนดชื่อและเลือกบทบาทของสมาชิกแต่ละคน:**")
+        # Render in rows of 4 columns
+        for row_start in range(0, n_team, 4):
+            row_indices = list(range(row_start, min(row_start + 4, n_team)))
+            cols = st.columns(len(row_indices))
+            for col_i, idx in enumerate(row_indices):
+                mem = st.session_state.team_members[idx]
+                role_col = ROLE_PROFILES[mem["บทบาท"]]["color"]
+                with cols[col_i]:
+                    st.markdown(f"""
+                    <div style="background-color: #f8fafc; border-top: 3px solid {role_col}; padding: 6px 10px 2px 10px; border-radius: 6px; margin-bottom: 6px;">
+                        <strong style="color: #334155; font-size: 13px;">สมาชิกคนที่ {idx + 1}</strong>
                     </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                    """, unsafe_allow_html=True)
+                    m_name = st.text_input(f"ชื่อคนที่ {idx+1}", value=mem["ชื่อ"], key=f"mem_name_{idx}")
+                    m_role = st.selectbox(f"บทบาทของคนที่ {idx+1}", options=list(role_options.keys()), 
+                                 format_func=lambda x: role_options[x], 
+                                 index=mem["บทบาท"], key=f"mem_role_{idx}")
+                    st.session_state.team_members[idx]["ชื่อ"] = m_name
+                    st.session_state.team_members[idx]["บทบาท"] = m_role
+                    if n_team > 2:
+                        if st.button(f"🗑️ นำออก", key=f"del_mem_{idx}"):
+                            st.session_state.team_members.pop(idx)
+                            st.rerun()
+
+    # Calculate analysis
+    current_names = [st.session_state.team_members[idx]["ชื่อ"] for idx in range(len(st.session_state.team_members))]
+    current_roles = [st.session_state.team_members[idx]["บทบาท"] for idx in range(len(st.session_state.team_members))]
+    n_curr = len(current_names)
+    
+    # Compute Team Diversity & Balance
+    role_counts = pd.Series(current_roles).value_counts()
+    unique_roles = len(role_counts)
+    balance_score = int((unique_roles / 4.0) * 100)
+    
+    # Compute Team Compatibility Score (%)
+    pairwise_matrix = np.zeros((n_curr, n_curr))
+    pairwise_list = []
+    for i in range(n_curr):
+        for j in range(n_curr):
+            if i == j:
+                pairwise_matrix[i][j] = 100
+            else:
+                syn = get_role_synergy(current_roles[i], current_roles[j])
+                pairwise_matrix[i][j] = syn["score"]
+                if i < j:
+                    pairwise_list.append({
+                        "m1": current_names[i],
+                        "m2": current_names[j],
+                        "r1": ROLE_PROFILES[current_roles[i]]["title"].split('(')[0],
+                        "r2": ROLE_PROFILES[current_roles[j]]["title"].split('(')[0],
+                        "c1": ROLE_PROFILES[current_roles[i]]["color"],
+                        "c2": ROLE_PROFILES[current_roles[j]]["color"],
+                        "score": syn["score"],
+                        "type": syn["type"],
+                        "detail": syn["detail"],
+                        "status": syn["status"]
+                    })
+                    
+    upper_scores = [pairwise_matrix[i][j] for i in range(n_curr) for j in range(i+1, n_curr)]
+    base_compat = float(np.mean(upper_scores)) if upper_scores else 100.0
+    
+    modifiers = 0
+    if unique_roles == 4:
+        modifiers += 4
+    elif unique_roles <= 2:
+        modifiers -= 6
         
-        st.markdown("---")
+    leader_count = sum(1 for r in current_roles if r == 0)
+    if leader_count > 2:
+        modifiers -= 10
+    elif leader_count == 2:
+        modifiers -= 4
+        
+    team_player_count = sum(1 for r in current_roles if r == 2)
+    if team_player_count == 0:
+        modifiers -= 5
+        
+    analytical_count = sum(1 for r in current_roles if r == 1)
+    if analytical_count == 0:
+        modifiers -= 4
+        
+    team_compat_score = int(np.clip(base_compat + modifiers, 35, 99))
+    
+    # Harmony badge & styling
+    if team_compat_score >= 85:
+        harmony_badge = "🟢 ยอดเยี่ยม (High Synergy & Cohesion)"
+        harmony_desc = "สมาชิกในทีมมีบทบาทและสไตล์ที่ส่งเสริมกันอย่างลงตัว การสื่อสารลื่นไหลและมีพลังขับเคลื่อนสูง"
+        h_color = "#166534"
+        h_bg = "#f0fdf4"
+        h_border = "#86efac"
+    elif team_compat_score >= 70:
+        harmony_badge = "🟡 ดี (Balanced & Good Chemistry)"
+        harmony_desc = "ทีมทำงานร่วมกันได้ดี มีความเข้าขากันในระดับมาตรฐาน มีบทบาทสนับสนุนที่เพียงพอ"
+        h_color = "#1e40af"
+        h_bg = "#eff6ff"
+        h_border = "#93c5fd"
+    elif team_compat_score >= 55:
+        harmony_badge = "🟠 ปานกลาง (Moderate Synergy — Needs Clear Rules)"
+        harmony_desc = "ควรมีการกำหนดบทบาทและขอบเขตงานให้ชัดเจนเพื่อป้องกันความขัดแย้งหรือการทำงานซ้ำซ้อน"
+        h_color = "#92400e"
+        h_bg = "#fffbeb"
+        h_border = "#fde68a"
+    else:
+        harmony_badge = "🔴 เสี่ยงต่อความขัดแย้ง (High Friction / Conflict Risk)"
+        harmony_desc = "มีโอกาสเกิดความเห็นไม่ตรงกันสูง เช่น การมีผู้นำซ้ำซ้อนหรือขาดผู้ประสานงาน ต้องมีข้อตกลงร่วมกันอย่างเร่งด่วน"
+        h_color = "#991b1b"
+        h_bg = "#fef2f2"
+        h_border = "#fca5a5"
+        
+    # Top Hero Metrics Banner
+    st.markdown("---")
+    m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+    with m_col1:
+        st.metric("คะแนนความเข้ากันได้ของทีม", f"{team_compat_score}%", help="คำนวณจาก Role Synergy Matrix, สัดส่วนความหลากหลาย และการลดทอนความเสี่ยง")
+    with m_col2:
+        st.metric("คะแนนความสมดุล (Balance)", f"{balance_score}%", help="ประเมินการกระจายตัวของทั้ง 4 บทบาทหลักในทีม")
+    with m_col3:
+        st.metric("จำนวนสมาชิกทั้งหมด", f"{n_curr} คน")
+    with m_col4:
+        st.metric("บทบาทที่ครอบคลุม", f"{unique_roles} / 4 บทบาท")
+        
+    st.markdown(f"""
+    <div style="background-color: {h_bg}; border: 1px solid {h_border}; border-left: 6px solid {h_color}; border-radius: 10px; padding: 12px 18px; margin: 12px 0 16px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div>
+                <strong style="color: {h_color}; font-size: 14px;">ระดับความเข้ากันได้ของทีม: {harmony_badge}</strong>
+                <p style="margin: 3px 0 0 0; color: #475569; font-size: 13px;">💡 {harmony_desc}</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.progress(team_compat_score / 100.0)
+
+    # 5 ORGANIZED SUB-TABS
+    sub3_t1, sub3_t2, sub3_t3, sub3_t4, sub3_t5 = st.tabs([
+        "🤝 1. ความเข้ากันได้ & Heatmap",
+        "🎯 2. สกิลของแต่ละตำแหน่ง (Member Skills)",
+        "📊 3. เรดาร์ทักษะ 5 ด้าน & ช่องว่าง (Skill Gaps)",
+        "🍩 4. สัดส่วนบทบาท & การวินิจฉัยโครงสร้าง",
+        "📚 5. คลังมาตรฐานทักษะ (Position Directory)"
+    ])
+
+    # Sub-tab 1: Team Compatibility & Heatmap & Agreement
+    with sub3_t1:
+        c_hm, c_syn = st.columns([1.1, 1])
+        with c_hm:
+            st.markdown("##### 🗺️ เมทริกซ์ความเข้ากันได้ระหว่างสมาชิก (Compatibility Heatmap)")
+            df_team_matrix = pd.DataFrame(pairwise_matrix, index=current_names, columns=current_names)
+            fig_team_heat = px.imshow(
+                df_team_matrix,
+                text_auto=True,
+                color_continuous_scale="Tealgrn",
+                aspect="auto",
+                labels=dict(color="ความเข้ากันได้ (%)")
+            )
+            fig_team_heat.update_layout(height=max(400, 320 + min(n_curr, 10) * 15), margin=dict(l=20, r=20, t=30, b=20))
+            st.plotly_chart(fig_team_heat, use_container_width=True)
+            
+        with c_syn:
+            st.markdown("##### 🌟 วิเคราะห์จุดเสริมพลังและจุดเสียดทานในทีม:")
+            if pairwise_list:
+                sorted_team_pairs = sorted(pairwise_list, key=lambda x: x["score"], reverse=True)
+                top_pair = sorted_team_pairs[0]
+                low_pair = sorted_team_pairs[-1]
+                
+                st.markdown(f"""
+                <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                    <h5 style="color: #166534; margin: 0; font-size: 14px;">🌟 คู่หู Synergy ส่งเสริมกันสูงสุด ({top_pair['score']}%)</h5>
+                    <p style="margin: 4px 0 2px 0; color: #1e293b;"><strong>{top_pair['m1']}</strong> ({top_pair['r1']}) & <strong>{top_pair['m2']}</strong> ({top_pair['r2']})</p>
+                    <small style="color: #15803d; font-weight: bold;">{top_pair['type']}</small><br/>
+                    <small style="color: #475569;">{top_pair['detail']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if low_pair["score"] < 80 or low_pair["status"] == "warning":
+                    st.markdown(f"""
+                    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                        <h5 style="color: #92400e; margin: 0; font-size: 14px;">⚠️ จุดเสียดทานที่ต้องระวัง ({low_pair['score']}%)</h5>
+                        <p style="margin: 4px 0 2px 0; color: #1e293b;"><strong>{low_pair['m1']}</strong> ({low_pair['r1']}) & <strong>{low_pair['m2']}</strong> ({low_pair['r2']})</p>
+                        <small style="color: #b45309; font-weight: bold;">{low_pair['type']}</small><br/>
+                        <small style="color: #475569;">{low_pair['detail']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                        <h5 style="color: #334155; margin: 0; font-size: 14px;">✅ ไม่พบจุดเสียดทานรุนแรง</h5>
+                        <small style="color: #64748b;">ทุกคู่ในทีมมีคะแนนความเข้ากันได้ในเกณฑ์น่าพึงพอใจ</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+            # Actionable Working Agreement
+            st.markdown("##### 📋 แนวทางบริหารจัดการและข้อตกลงร่วมกัน (Team Agreement):")
+            if leader_count > 1:
+                st.info("📌 **ข้อตกลงเรื่องการตัดสินใจ:** มีผู้นำมากกว่า 1 คน ควรกำหนด Domain Ownership ให้ชัดเจน (เช่น คนที่ 1 คุมด้าน Product/Strategy และคนที่ 2 คุมด้าน Technical/Delivery) เพื่อไม่ให้ชนกัน")
+            elif leader_count == 0:
+                st.warning("📌 **ข้อตกลงเรื่องทิศทางงาน:** ทีมไม่มีผู้นำโดยธรรมชาติ แนะนำให้แต่งตั้งผู้ประสานงานหลัก หรือกำหนดเกณฑ์การโหวตมติเสียงส่วนใหญ่เพื่อไม่ให้งานล่าช้า")
+            else:
+                st.success("📌 **การขับเคลื่อนงาน:** มีผู้นำ 1 คนชัดเจน สามารถฟันธงทิศทางงานได้อย่างคล่องตัว ให้คอยรับฟังข้อเสนอแนะจากเพื่อนร่วมทีมเสมอ")
+                
+            if team_player_count == 0:
+                st.warning("📌 **การดูแลบรรยากาศ:** ขาด Team Player แนะนำให้จัด Daily Standup สั้นๆ และเปิดช่วงเวลาถามไถ่ความรู้สึกเพื่อสร้างความผ่อนคลาย")
+
+    # Sub-tab 2: Member Roles & Skills Breakdown
+    with sub3_t2:
+        st.markdown("##### 🏆 ตำแหน่งงานและข้อกำหนดสกิลของสมาชิกแต่ละคน (Individual Role & Skill Cards)")
+        st.write("แจกแจง **Hard Skills**, **Soft Skills**, **เครื่องมือหลัก (Tools)**, และ **หน้าที่รับผิดชอบ (Responsibilities)** ตามตำแหน่งจริงของสมาชิก")
+        
+        # Render individual role and skill cards in rows of 2 columns
+        for r_start in range(0, n_curr, 2):
+            r_indices = list(range(r_start, min(r_start + 2, n_curr)))
+            r_cols = st.columns(len(r_indices))
+            for c_i, idx in enumerate(r_indices):
+                name = current_names[idx]
+                r_id = current_roles[idx]
+                p = ROLE_PROFILES[r_id]
+                sk = p["skills"]
+                h_tags = "".join([f"<span class='tag-hard'>{s}</span>" for s in sk['hard']])
+                s_tags = "".join([f"<span class='tag-soft'>{s}</span>" for s in sk['soft']])
+                tools_tags = "".join([f"<span class='tag-tool'>{s}</span>" for s in sk['tools']])
+                resp_list = "".join([f"<li style='margin-bottom: 3px;'>{resp}</li>" for resp in p['responsibilities']])
+                
+                with r_cols[c_i]:
+                    st.markdown(f"""
+                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 5px solid {p['color']}; padding: 18px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div>
+                                <h4 style="margin: 0; color: #0f172a; font-size: 17px;">👤 {name}</h4>
+                                <p style="color: {p['color']}; font-weight: bold; margin: 3px 0 0 0; font-size: 14px;">🎯 ตำแหน่ง: {p['job_title']}</p>
+                            </div>
+                            <span style="background-color: {p['color']}15; color: {p['color']}; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+                                {p['short_title']}
+                            </span>
+                        </div>
+                        <small style="color: #64748b; font-weight: 500;">สายงาน: <strong>{p['track']}</strong></small>
+                        
+                        <div style="margin-top: 10px; background-color: #f8fafc; padding: 10px 12px; border-radius: 8px;">
+                            <strong style="font-size: 12px; color: #1e293b;">📌 หน้าที่รับผิดชอบหลัก:</strong>
+                            <ul style="margin: 6px 0 0 0; padding-left: 18px; font-size: 12px; color: #475569; line-height: 1.5;">
+                                {resp_list}
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-top: 10px;">
+                            <strong style="font-size: 12px; color: #1e293b;">⚡ Hard Skills ที่ต้องมี:</strong><br/>
+                            <div style="margin-top: 4px;">{h_tags}</div>
+                        </div>
+                        
+                        <div style="margin-top: 8px;">
+                            <strong style="font-size: 12px; color: #1e293b;">🧠 Soft Skills ประจำตำแหน่ง:</strong><br/>
+                            <div style="margin-top: 4px;">{s_tags}</div>
+                        </div>
+                        
+                        <div style="margin-top: 8px;">
+                            <strong style="font-size: 12px; color: #1e293b;">🛠️ เครื่องมือหลัก:</strong><br/>
+                            <div style="margin-top: 4px;">{tools_tags}</div>
+                        </div>
+                        
+                        <div style="margin-top: 10px; background-color: #eff6ff; border-left: 3px solid #3b82f6; padding: 8px 12px; border-radius: 6px; font-size: 12px; color: #1e40af; line-height: 1.4;">
+                            <strong>🚀 ข้อแนะนำ Upskill:</strong> {p['upskill_recommendations']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+    # Sub-tab 3: Competency Radar & Skill Gaps
+    with sub3_t3:
+        col_rad, col_gap = st.columns([1, 1])
+        
+        # Calculate team competency vector
+        comp_matrix = np.array([ROLE_PROFILES[r]["competency_vector"] for r in current_roles])
+        team_comp_scores = np.max(comp_matrix, axis=0)  # Peak competency coverage in the team
+        team_avg_comp = np.mean(comp_matrix, axis=0)   # Average competency
+        
+        with col_rad:
+            st.markdown("##### 🕸️ Team Competency Radar (ความครอบคลุมทักษะ 5 ด้าน)")
+            fig_team_comp = go.Figure()
+            fig_team_comp.add_trace(go.Scatterpolar(
+                r=team_comp_scores,
+                theta=TEAM_COMPETENCY_AREAS,
+                fill='toself',
+                name="ศักยภาพสูงสุดของทีม (Peak Coverage)",
+                line_color="#2563EB",
+                opacity=0.35
+            ))
+            fig_team_comp.add_trace(go.Scatterpolar(
+                r=[80] * 5,
+                theta=TEAM_COMPETENCY_AREAS,
+                name="เกณฑ์มาตรฐานแนะนำ (Benchmark 80%)",
+                line=dict(color="#94A3B8", dash='dash'),
+                fill=None
+            ))
+            fig_team_comp.update_layout(
+                polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+                showlegend=True,
+                height=380,
+                margin=dict(l=20, r=20, t=30, b=20)
+            )
+            st.plotly_chart(fig_team_comp, use_container_width=True)
+            
+        with col_gap:
+            st.markdown("##### 🔍 การวิเคราะห์ทักษะเด่นและช่องว่างทักษะ (Skill Gap Insights):")
+            for idx_c, area_name in enumerate(TEAM_COMPETENCY_AREAS):
+                score_c = team_comp_scores[idx_c]
+                short_area = area_name.split('(')[0].strip()
+                if score_c >= 85:
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background-color: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 6px; margin-bottom: 6px;">
+                        <div><strong style="color: #166534; font-size: 13px;">✅ {short_area}</strong> <small style="color: #64748b;">(ครอบคลุมแข็งแกร่ง)</small></div>
+                        <strong style="color: #15803d; font-size: 14px;">{score_c}%</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif score_c >= 70:
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background-color: #f8fafc; border-left: 4px solid #0284c7; border-radius: 6px; margin-bottom: 6px;">
+                        <div><strong style="color: #0369a1; font-size: 13px;">🔵 {short_area}</strong> <small style="color: #64748b;">(อยู่ในเกณฑ์มาตรฐาน)</small></div>
+                        <strong style="color: #0284c7; font-size: 14px;">{score_c}%</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 6px; margin-bottom: 6px;">
+                        <div><strong style="color: #991b1b; font-size: 13px;">⚠️ {short_area}</strong> <small style="color: #dc2626; font-weight: bold;">(Skill Gap — ทีมยังขาดความเชี่ยวชาญด้านนี้)</small></div>
+                        <strong style="color: #b91c1c; font-size: 14px;">{score_c}%</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+            # Actionable gap advice
+            weak_areas = [TEAM_COMPETENCY_AREAS[i].split('(')[0].strip() for i in range(5) if team_comp_scores[i] < 70]
+            if weak_areas:
+                st.warning(f"💡 **คำแนะนำปิดช่องว่างทักษะ:** ทีมยังขาดความเชี่ยวชาญด้าน **{', '.join(weak_areas)}** ควรส่งเสริมให้สมาชิกในทีม Upskill หรือจัดหาผู้เชี่ยวชาญมาช่วยเสริมจุดนี้")
+            else:
+                st.success("🎉 **ยอดเยี่ยม!** ทีมชุดนี้มีทักษะครอบคลุมทั้ง 5 มิติเกินเกณฑ์มาตรฐาน ไม่มี Skill Gap ร้ายแรง")
+
+    # Sub-tab 4: Role Structure & Diagnostics
+    with sub3_t4:
         col_t1, col_t2 = st.columns([1, 1])
         with col_t1:
-            st.markdown("#### 🍩 สัดส่วนบทบาทในทีม")
             labels = [role_options[r] for r in role_counts.index]
             values = role_counts.values
             fig_donut = px.pie(names=labels, values=values, hole=0.45, title="สัดส่วนบทบาทของสมาชิก")
+            fig_donut.update_layout(height=360, margin=dict(l=10, r=10, t=40, b=10))
             st.plotly_chart(fig_donut, use_container_width=True)
             
         with col_t2:
-            st.markdown("#### 📋 การวินิจฉัยและคำแนะนำเชิงลึก:")
+            st.markdown("##### 📋 การวินิจฉัยและคำเตือนเชิงโครงสร้าง:")
             missing_roles = [r for r in [0, 1, 2, 3] if r not in role_counts.index]
             if missing_roles:
                 for r in missing_roles:
                     if r == 0:
-                        st.error("❌ **Critical: ขาด Leader (ผู้นำ)** — เสี่ยงงานล่าช้า ขาดคนตัดสินใจฟันธง")
+                        st.error("❌ **Critical: ขาด Leader (ผู้นำ)** — เสี่ยงงานล่าช้า ขาดคนตัดสินใจฟันธงทิศทาง")
                     elif r == 1:
-                        st.error("❌ **Critical: ขาด Analytical (นักวิเคราะห์)** — เสี่ยงต่องานตกหล่นและบั๊กในระบบ")
+                        st.error("❌ **Critical: ขาด Analytical (นักวิเคราะห์)** — เสี่ยงต่องานตกหล่น สถาปัตยกรรมระบบไม่นิ่ง และมีบั๊ก")
                     elif r == 2:
-                        st.warning("⚠️ **Warning: ขาด Team Player (ผู้ประสานงาน)** — บรรยากาศตึงเครียด ขาดคนเกลี่ยงาน")
+                        st.warning("⚠️ **Warning: ขาด Team Player (ผู้ประสานงาน)** — บรรยากาศตึงเครียด ขาดคนประสานข้ามสายงาน")
                     elif r == 3:
-                        st.warning("⚠️ **Warning: ขาด Creative (นักคิดสร้างสรรค์)** — งานจำเจ ขาดไอเดียแปลกใหม่")
+                        st.warning("⚠️ **Warning: ขาด Creative (นักคิดสร้างสรรค์)** — ขาดไอเดียแปลกใหม่ โปรดักต์อาจขาดจุดเด่นที่น่าดึงดูด")
             else:
-                st.success("🎉 ครบถ้วน! ไม่มีบทบาทหลักใดที่ขาดหายไปในทีมนี้")
+                st.success("🎉 **โครงสร้างสมบูรณ์แบบ!** มีครบทั้ง 4 บทบาทหลักในทีม")
                 
             for r, count in role_counts.items():
                 if count >= 3:
                     if r == 0:
                         st.error(f"⚠️ **Warning Redundancy: มีผู้นำ (Leader) ถึง {count} คน!** ระวัง Ego Clash และแย่งการตัดสินใจ")
                     else:
-                        st.warning(f"⚠️ **Warning: มีบทบาท {role_options[r]} ซ้ำซ้อน {count} คน**")
+                        st.warning(f"⚠️ **Warning: มีบทบาท {role_options[r]} ซ้ำซ้อน {count} คน** ควรแบ่งหน้าที่รับผิดชอบให้ชัดเจน")
+
+    # Sub-tab 5: Interactive Position Skills Directory
+    with sub3_t5:
+        st.markdown("##### 📚 คลังข้อมูลมาตรฐานทักษะของทุกตำแหน่ง (Standard Position Skills Directory)")
+        st.write("ตารางเปรียบเทียบมาตรฐานทักษะ (Skill Matrix) ของทั้ง 4 ตำแหน่งในโปรเจกต์ เพื่อใช้อ้างอิงในการสรรหา พัฒนา และประเมินผลงาน")
+        
+        tab_p0, tab_p1, tab_p2, tab_p3 = st.tabs([
+            ROLE_PROFILES[0]["job_title"],
+            ROLE_PROFILES[1]["job_title"],
+            ROLE_PROFILES[2]["job_title"],
+            ROLE_PROFILES[3]["job_title"]
+        ])
+        
+        for p_idx, p_tab in enumerate([tab_p0, tab_p1, tab_p2, tab_p3]):
+            p_obj = ROLE_PROFILES[p_idx]
+            with p_tab:
+                c_dir1, c_dir2 = st.columns([1, 1])
+                with c_dir1:
+                    st.markdown(f"#### {p_obj['title']}")
+                    st.markdown(f"**สายงาน:** {p_obj['track']}")
+                    st.markdown(f"**จุดแข็ง:** {p_obj['strengths']}")
+                    st.markdown(f"**จุดที่ควรระวัง:** {p_obj['blindspots']}")
+                    st.markdown(f"**บทบาทคู่หูที่เหมาะสม:** {p_obj['pairing']}")
+                with c_dir2:
+                    h_pill_dir = "".join([f"<span class='tag-hard'>{h}</span>" for h in p_obj['skills']['hard']])
+                    s_pill_dir = "".join([f"<span class='tag-soft'>{s}</span>" for s in p_obj['skills']['soft']])
+                    t_pill_dir = "".join([f"<span class='tag-tool'>{t}</span>" for t in p_obj['skills']['tools']])
+                    st.markdown(f"**⚡ Hard Skills:**<br/>{h_pill_dir}", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-top: 8px;'><strong>🧠 Soft Skills:</strong><br/>{s_pill_dir}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-top: 8px;'><strong>🛠️ เครื่องมือหลัก:</strong><br/>{t_pill_dir}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-top: 10px; background-color: #f8fafc; padding: 8px 12px; border-radius: 6px;'><strong>🚀 คำแนะนำการพัฒนา:</strong> {p_obj['tip']}</div>", unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 4: ML MODEL METRICS & FEATURE IMPORTANCE & PCA

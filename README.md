@@ -25,16 +25,20 @@
 - **Before / After Growth Tracker:** ติดตามพัฒนาการก่อน-หลังฝึกฝนทักษะ
 - **Export Report:** ดาวน์โหลดรายงานสรุปผลเป็น Text (`.txt`) หรือ CSV (`.csv`)
 
-### 2. ⚔️ เปรียบเทียบคู่หู (Side-by-Side Comparison)
-- เปรียบเทียบเพื่อนร่วมงาน 2 คน พร้อมคำนวณ **Compatibility Percentage Meter**
-- แสดงผลด้วย **Dual Radar Chart** ซ้อนทับ 2 สี
-- วิเคราะห์ความเข้าขา (Synergy) และจุดที่ต้องระวังเวลาขัดแย้ง (Friction Points)
+### 2. ⚔️ เปรียบเทียบสมาชิก (Side-by-Side Comparison — กี่คนก็ได้)
+- เปรียบเทียบเพื่อนร่วมงานได้ **กี่คนก็ได้ (ไม่จำกัดจำนวน)** พร้อมปุ่ม Quick Presets (2, 3, 4, 5 คน)
+- แสดงผลด้วย **Multi-Person Radar Chart** ซ้อนทับหลายสีตามจำนวนคนอย่างชัดเจน
+- **Pairwise Compatibility Matrix:** ฮีตแมปเมทริกซ์ความเข้ากันได้แบบ N × N
+- **Group Synergy & Friction Analysis:** ค้นหาคู่หูที่มี Synergy สูงสุด และคู่ที่ต้องปรับจูนสไตล์การทำงานร่วมกัน พร้อมสรุปสัดส่วนบทบาทในกลุ่ม
 
-### 3. 👥 จัดทีม & Role Recommendation
-- จำลองทีม 3–8 คน พร้อมปุ่ม Quick Presets ทดสอบสถานการณ์จริง
-- คำนวณ **Team Diversity Score (0–100%)** และชาร์ต Donut แสดงสัดส่วน
-- ระบบแจ้งเตือนความเสี่ยง (Critical / Redundancy Warning) เช่น การมีผู้นำซ้ำซ้อน
-- **AI Team Role Recommendation:** แนะนำตำแหน่งจริงในโปรเจกต์ (Project Leader, Core Dev, Product Designer, Team Coordinator)
+### 3. 👥 จัดทีม, สกิลแต่ละตำแหน่ง & วิเคราะห์ความเข้ากันได้ของทีม (Team Fit & Compatibility)
+- จำลองทีม 3–12 คน พร้อมปุ่ม Quick Presets 5 สถานการณ์จริง (Ideal, Agile Squad, High Risk, Missing Data, Innovation)
+- **Team Compatibility Score (0–100%):** คำนวณความเข้ากันได้ของทีมอย่างเป็นวิทยาศาสตร์ พร้อม Harmony Meter และ Status Badge
+- **Pairwise Team Compatibility Matrix:** ฮีตแมป N × N แสดงความเข้ากันได้ระหว่างทุกคนในทีม
+- **Synergy & Friction Breakdown:** วิเคราะห์คู่ที่เสริมพลังกันสูงสุด จุดเสี่ยงความขัดแย้ง และข้อตกลงการทำงานร่วมกัน (Team Agreement)
+- **AI Role & Skill Specification:** บอกสกิลของในแต่ละตำแหน่งอย่างละเอียด (Hard Skills, Soft Skills, เครื่องมือ Tools, และหน้าที่รับผิดชอบหลัก)
+- **Team Competency Radar & Skill Gap Analysis:** เรดาร์ทักษะ 5 ด้านของทีม พร้อมวิเคราะห์จุดแข็งและช่องว่างทักษะที่ทีมยังขาด
+- **Interactive Position Skills Directory:** คลังข้อมูลมาตรฐานทักษะของทุกตำแหน่งในโปรเจกต์
 
 ### 4. 📈 สรุปโมเดล ML & Feature Importance
 - **Model Evaluation Metrics:** แสดงค่า Silhouette Score, Davies-Bouldin Index, และ Inertia (WCSS)
