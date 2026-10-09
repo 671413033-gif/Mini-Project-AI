@@ -630,38 +630,50 @@ def predict_profile(user_features):
     return cluster_id, radar_values, u_pca, distances
 
 # ==============================================================================
-# 🌗 DAY / NIGHT SWITCH (แทนเมนูธีมเดิมของ Streamlit)
+# ==============================================================================
+# 🌗 DAY / NIGHT SWITCH — แคปซูลมุมขวาบน (ลอยตามหน้าจอ)
 # ==============================================================================
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
 
-_sp, _sw = st.columns([6, 1.6])
-with _sw:
-    with st.container(key="theme_switch"):
-        st.toggle("โหมดกลางคืน 🌙", key="dark_mode")
+with st.container(key="theme_switch"):
+    st.toggle("โหมดกลางคืน 🌙", key="dark_mode")
 
 IS_DARK = st.session_state.dark_mode
 
+# --- สไตล์แคปซูล (ใช้ทั้งโหมดกลางวัน/กลางคืน) ---
 st.markdown("""
 <style>
+.block-container { padding-top: 3.6rem !important; }
+
 .st-key-theme_switch {
+    position: fixed !important;
+    top: 14px; right: 24px;
+    z-index: 999999;
+    width: fit-content !important;
     background: linear-gradient(135deg, #FFFFFF 0%, #F1F5F9 100%);
     border: 1px solid #E2E8F0;
     border-radius: 999px;
-    padding: 6px 16px 2px 16px;
-    box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.18);
-    width: fit-content;
-    margin-left: auto;
+    padding: 8px 18px 4px 18px;
+    box-shadow: 0 6px 18px -6px rgba(15, 23, 42, 0.30);
     transition: all .25s ease;
+    cursor: pointer;
 }
-.st-key-theme_switch:hover { box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.35); border-color: #93C5FD; }
-.st-key-theme_switch label p { font-weight: 700; font-size: 13px; color: #1E293B; }
+.st-key-theme_switch:hover {
+    transform: translateY(-1px);
+    border-color: #60A5FA;
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.45);
+}
+.st-key-theme_switch label p { font-weight: 700; font-size: 13px; color: #1E293B; white-space: nowrap; }
+.st-key-theme_switch label { cursor: pointer; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---- ตั้งค่ากราฟ Plotly ให้เปลี่ยนตามโหมด ----
+# ---- กราฟ Plotly เปลี่ยนตามโหมด ----
 _PLOT_TEMPLATE = "plotly_dark" if IS_DARK else "plotly_white"
 _FONT_COLOR = "#E2E8F0" if IS_DARK else "#1E293B"
+_GRID_COLOR = "rgba(148,163,184,0.25)" if IS_DARK else "rgba(100,116,139,0.20)"
 _orig_plotly_chart = st.plotly_chart
 
 def _themed_plotly_chart(fig, *args, **kwargs):
@@ -671,54 +683,153 @@ def _themed_plotly_chart(fig, *args, **kwargs):
         plot_bgcolor="rgba(0,0,0,0)",
         polar_bgcolor="rgba(0,0,0,0)",
         font_color=_FONT_COLOR,
+        title_font_color=_FONT_COLOR,
+        legend_font_color=_FONT_COLOR,
+        hoverlabel=dict(
+            bgcolor="#1E293B" if IS_DARK else "#FFFFFF",
+            font_color="#F1F5F9" if IS_DARK else "#1E293B",
+        ),
     )
-    kwargs.setdefault("theme", None)  # ใช้ template ของเราแทนธีมอัตโนมัติของ Streamlit
+    fig.update_xaxes(gridcolor=_GRID_COLOR, zerolinecolor=_GRID_COLOR)
+    fig.update_yaxes(gridcolor=_GRID_COLOR, zerolinecolor=_GRID_COLOR)
+    fig.update_polars(
+        radialaxis_gridcolor=_GRID_COLOR,
+        angularaxis_gridcolor=_GRID_COLOR,
+        radialaxis_tickfont_color=_FONT_COLOR,
+        angularaxis_tickfont_color=_FONT_COLOR,
+    )
+    kwargs.setdefault("theme", None)
     return _orig_plotly_chart(fig, *args, **kwargs)
 
 st.plotly_chart = _themed_plotly_chart
 
+# ==============================================================================
+# 🌙 DARK MODE — เปลี่ยนสีทั้งหน้าเว็บ
+# ==============================================================================
 if IS_DARK:
     st.markdown("""
     <style>
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    /* ---------- พื้นหลังและตัวอักษรหลัก ---------- */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"],
+    [data-testid="stBottom"], [data-testid="stBottom"] > div {
         background: #0B1220 !important; color: #E2E8F0 !important;
     }
     .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-    .stApp p, .stApp li, .stApp label, .stApp .stMarkdown { color: #E2E8F0; }
-    .stApp small, .stApp [data-testid="stCaptionContainer"] { color: #94A3B8 !important; }
+    .stApp p, .stApp li, .stApp label, .stApp span, .stApp .stMarkdown,
+    .stApp [data-testid="stWidgetLabel"] p { color: #E2E8F0; }
+    .stApp small, .stApp [data-testid="stCaptionContainer"],
+    .stApp [data-testid="stCaptionContainer"] p { color: #94A3B8 !important; }
+    .stApp hr { border-color: #263449 !important; }
+    .stApp code { background: #162033 !important; color: #93C5FD !important; }
 
-    /* สวิตช์ในโหมดกลางคืน */
+    /* ---------- แคปซูลสวิตช์ ---------- */
     .st-key-theme_switch {
         background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
         border-color: #334155 !important;
-        box-shadow: 0 4px 16px -4px rgba(147, 197, 253, 0.25) !important;
+        box-shadow: 0 6px 20px -6px rgba(147, 197, 253, 0.35) !important;
+    }
+    .st-key-theme_switch:hover {
+        background: linear-gradient(135deg, #243449 0%, #16213A 100%) !important;
+        border-color: #60A5FA !important;
+        box-shadow: 0 10px 26px -6px rgba(96, 165, 250, 0.55) !important;
     }
     .st-key-theme_switch label p { color: #F1F5F9 !important; }
 
-    /* ช่องกรอกข้อมูล */
-    [data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="select"] > div {
-        background-color: #111B2E !important; border-color: #334155 !important;
+    /* ---------- ช่องกรอกข้อมูล (แก้ปัญหาพื้นขาว/ตัวหนังสือจาง) ---------- */
+    [data-testid="stTextInput"] [data-baseweb="input"],
+    [data-testid="stTextInput"] [data-baseweb="base-input"],
+    [data-testid="stTextArea"] [data-baseweb="textarea"],
+    [data-testid="stTextArea"] [data-baseweb="base-input"],
+    [data-testid="stNumberInput"] [data-baseweb="input"],
+    [data-testid="stNumberInput"] [data-baseweb="base-input"],
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
+    [data-testid="stChatInput"] > div, [data-testid="stChatInput"] [data-baseweb="textarea"],
+    [data-testid="stChatInput"] [data-baseweb="base-input"] {
+        background-color: #111B2E !important;
+        border-color: #334155 !important;
+        color: #F1F5F9 !important;
     }
-    [data-baseweb="input"] input, [data-baseweb="textarea"] textarea { color: #F1F5F9 !important; }
-    [data-baseweb="popover"] ul, [data-baseweb="menu"] { background: #111B2E !important; }
-    [data-baseweb="popover"] li { color: #E2E8F0 !important; }
+    [data-testid="stTextInput"] input,
+    [data-testid="stTextArea"] textarea,
+    [data-testid="stNumberInput"] input,
+    [data-testid="stChatInput"] textarea,
+    [data-testid="stSelectbox"] input {
+        background-color: transparent !important;
+        color: #F1F5F9 !important;
+        -webkit-text-fill-color: #F1F5F9 !important;
+        caret-color: #F1F5F9 !important;
+    }
+    [data-testid="stTextInput"] input::placeholder,
+    [data-testid="stTextArea"] textarea::placeholder,
+    [data-testid="stChatInput"] textarea::placeholder {
+        color: #64748B !important; -webkit-text-fill-color: #64748B !important;
+    }
+    [data-testid="stTextInput"] [data-baseweb="input"]:focus-within,
+    [data-testid="stTextArea"] [data-baseweb="textarea"]:focus-within,
+    [data-testid="stSelectbox"] [data-baseweb="select"]:focus-within > div {
+        border-color: #60A5FA !important;
+        box-shadow: 0 0 0 1px #60A5FA !important;
+    }
+    /* ข้อความและไอคอนใน selectbox */
+    [data-testid="stSelectbox"] [data-baseweb="select"] div,
+    [data-testid="stSelectbox"] [data-baseweb="select"] span { color: #F1F5F9 !important; }
+    [data-testid="stSelectbox"] svg, [data-testid="stNumberInput"] svg { fill: #CBD5E1 !important; color: #CBD5E1 !important; }
+    /* เมนูดรอปดาวน์ */
+    [data-baseweb="popover"], [data-baseweb="popover"] > div,
+    [data-baseweb="popover"] ul, [data-baseweb="menu"], ul[role="listbox"] {
+        background: #111B2E !important; color: #E2E8F0 !important;
+    }
+    [data-baseweb="popover"] li, li[role="option"] { background: #111B2E !important; color: #E2E8F0 !important; }
+    [data-baseweb="popover"] li:hover, li[role="option"]:hover,
+    li[role="option"][aria-selected="true"] { background: #1E3A5F !important; }
 
-    /* ปุ่ม / metric / expander / tab */
+    /* ---------- ปุ่ม ---------- */
     div[data-testid="stButton"] > button, div[data-testid="stDownloadButton"] > button {
-        background: #162033 !important; color: #E2E8F0 !important; border-color: #334155 !important;
+        background: #162033 !important; color: #E2E8F0 !important; border: 1px solid #334155 !important;
     }
-    div[data-testid="stButton"] > button:hover { border-color: #60A5FA !important; }
-    div[data-testid="stMetric"] { background: #111B2E !important; border-color: #263449 !important; }
-    div[data-testid="stExpander"] { background: #0F1A2E !important; border-color: #263449 !important; }
-    div[data-testid="stExpander"] summary { color: #E2E8F0 !important; }
-    button[data-baseweb="tab"][aria-selected="true"] { color: #F8FAFC !important; background: rgba(96,165,250,.10); border-bottom-color: #60A5FA !important; }
-    [data-testid="stChatMessage"] { background: #111B2E !important; }
-    [data-testid="stChatInput"] textarea { color: #F1F5F9 !important; }
+    div[data-testid="stButton"] > button p, div[data-testid="stDownloadButton"] > button p { color: #E2E8F0 !important; }
+    div[data-testid="stButton"] > button:hover, div[data-testid="stDownloadButton"] > button:hover {
+        border-color: #60A5FA !important; background: #1B2A44 !important;
+        box-shadow: 0 4px 14px rgba(96,165,250,.25) !important;
+    }
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(135deg, #2563EB 0%, #4F46E5 100%) !important;
+        border-color: #3B82F6 !important; color: #FFFFFF !important;
+    }
 
-    /* ตาราง dataframe (วาดด้วย canvas จึงใช้ filter) */
+    /* ---------- Metric / Expander / Tab ---------- */
+    div[data-testid="stMetric"] { background: #111B2E !important; border-color: #263449 !important; }
+    div[data-testid="stMetric"] * { color: #E2E8F0 !important; }
+    div[data-testid="stExpander"], div[data-testid="stExpander"] details {
+        background: #0F1A2E !important; border-color: #263449 !important;
+    }
+    div[data-testid="stExpander"] summary, div[data-testid="stExpander"] summary * { color: #E2E8F0 !important; }
+    [data-baseweb="tab-list"] { border-bottom-color: #263449 !important; }
+    button[data-baseweb="tab"] { color: #94A3B8 !important; }
+    button[data-baseweb="tab"]:hover { color: #E2E8F0 !important; background: rgba(96,165,250,.08) !important; }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #F8FAFC !important; background: rgba(96,165,250,.12) !important;
+        border-bottom-color: #60A5FA !important;
+    }
+
+    /* ---------- กล่องแจ้งเตือน (info/success/warning/error) ---------- */
+    [data-testid="stAlert"], [data-testid="stAlertContainer"] {
+        background: rgba(59,130,246,.12) !important; border: 1px solid #263449 !important;
+    }
+    [data-testid="stAlert"] *, [data-testid="stAlertContainer"] * { color: #E2E8F0 !important; }
+
+    /* ---------- แชท / JSON / ตาราง ---------- */
+    [data-testid="stChatMessage"] { background: #111B2E !important; border: 1px solid #263449; }
+    [data-testid="stJson"], [data-testid="stJson"] > div { background: #0F1A2E !important; }
     [data-testid="stDataFrame"] { filter: invert(0.92) hue-rotate(180deg); border-radius: 10px; }
 
-    /* การ์ด HTML ที่ฮาร์ดโค้ดสีสว่างไว้ → เป็นสีเข้ม */
+    /* ---------- Slider ---------- */
+    [data-testid="stSlider"] [data-testid="stTickBarMin"],
+    [data-testid="stSlider"] [data-testid="stTickBarMax"],
+    [data-testid="stSlider"] [data-testid="stSliderThumbValue"] { color: #CBD5E1 !important; }
+
+    /* ---------- การ์ด HTML ที่ฮาร์ดโค้ดสีสว่าง → สีเข้ม ---------- */
     [style*="background-color: #f8fafc" i], [style*="background-color: #ffffff" i],
     [style*="background-color: #FAFAFA" i], [style*="background-color: #f1f5f9" i]
         { background-color: #111B2E !important; }
@@ -727,14 +838,14 @@ if IS_DARK:
     [style*="background-color: #eff6ff" i] { background-color: rgba(59,130,246,.14) !important; }
     [style*="background-color: #fff7ed" i] { background-color: rgba(249,115,22,.12) !important; }
     [style*="background-color: #fef2f2" i] { background-color: rgba(239,68,68,.12) !important; }
-    [style*="border: 1px solid #e2e8f0" i] { border-color: #263449 !important; }
+    [style*="#e2e8f0" i] { border-color: #263449 !important; }
 
     /* ตัวอักษรเข้มในการ์ด → สว่าง */
     [style*="color: #1e293b" i], [style*="color: #0f172a" i], [style*="color: #334155" i],
     [style*="color: #475569" i], [style*="color: #111" i], [style*="color: #555" i],
     [style*="color: #431407" i] { color: #E2E8F0 !important; }
     [style*="color: #64748b" i], [style*="color: #94a3b8" i] { color: #94A3B8 !important; }
-    [style*="color: #166534" i], [style*="color: #15803d" i] { color: #86EFAC !important; }
+    [style*="color: #166534" i], [style*="color: #15803d" i], [style*="color: #16a34a" i] { color: #86EFAC !important; }
     [style*="color: #92400e" i], [style*="color: #b45309" i] { color: #FCD34D !important; }
     [style*="color: #1e40af" i], [style*="color: #2563eb" i] { color: #93C5FD !important; }
     [style*="color: #c2410c" i] { color: #FDBA74 !important; }
@@ -742,15 +853,82 @@ if IS_DARK:
     [style*="color: #0369a1" i], [style*="color: #0284c7" i] { color: #7DD3FC !important; }
     [style*="color: #0d9488" i] { color: #5EEAD4 !important; }
 
-    /* แท็กสกิล */
+    /* ---------- แท็กสกิล ---------- */
     .tag-hard { background-color: rgba(59,130,246,.15) !important; color: #93C5FD !important; border-color: rgba(59,130,246,.4) !important; }
     .tag-soft { background-color: rgba(34,197,94,.15) !important; color: #86EFAC !important; border-color: rgba(34,197,94,.4) !important; }
     .tag-tool { background-color: rgba(14,165,233,.15) !important; color: #7DD3FC !important; border-color: rgba(14,165,233,.4) !important; }
     .tag-candidate { background-color: #111B2E !important; color: #E2E8F0 !important; }
+    .modern-card { background: #111B2E !important; border-color: #263449 !important; }
     </style>
     """, unsafe_allow_html=True)
+    # ---------- ฟิกซ์ที่ 1: การ์ด HTML (match ทั้ง hex และ rgb()) ----------
+    def _rgb(h):
+        h = h.lstrip("#")
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return f"rgb({int(h[0:2],16)}, {int(h[2:4],16)}, {int(h[4:6],16)})"
 
-# --- HERO HEADER ---
+    def _rules(prop, mapping):
+        out = []
+        for hx, new in mapping.items():
+            sels = ",".join(f'.stApp [style*="{prop}: {v}" i]' for v in (hx, _rgb(hx)))
+            out.append(f"{sels}{{{prop}:{new} !important;}}")
+        return "\n".join(out)
+
+    _BG = {
+        "#f8fafc": "#111B2E", "#ffffff": "#111B2E", "#fafafa": "#111B2E", "#f1f5f9": "#111B2E",
+        "#f0fdf4": "rgba(34,197,94,.12)", "#fffbeb": "rgba(245,158,11,.12)",
+        "#eff6ff": "rgba(59,130,246,.14)", "#fff7ed": "rgba(249,115,22,.12)",
+        "#fef2f2": "rgba(239,68,68,.12)",
+    }
+    _FG = {
+        "#1e293b": "#E2E8F0", "#0f172a": "#E2E8F0", "#334155": "#E2E8F0", "#475569": "#CBD5E1",
+        "#111": "#F1F5F9", "#555": "#CBD5E1", "#431407": "#FDBA74",
+        "#64748b": "#94A3B8", "#94a3b8": "#94A3B8",
+        "#166534": "#86EFAC", "#15803d": "#86EFAC", "#16a34a": "#86EFAC",
+        "#92400e": "#FCD34D", "#b45309": "#FCD34D",
+        "#1e40af": "#93C5FD", "#2563eb": "#93C5FD", "#c2410c": "#FDBA74",
+        "#991b1b": "#FCA5A5", "#b91c1c": "#FCA5A5", "#dc2626": "#FCA5A5",
+        "#0369a1": "#7DD3FC", "#0284c7": "#7DD3FC", "#0d9488": "#5EEAD4",
+    }
+    _BORDER = ",".join(
+        f'.stApp [style*="{v}" i]' for v in ("#e2e8f0", _rgb("#e2e8f0"))
+    ) + "{border-color:#263449 !important;}"
+
+    st.markdown(
+        "<style>" + _rules("background-color", _BG) + "\n" +
+        _rules("color", _FG) + "\n" + _BORDER + "</style>",
+        unsafe_allow_html=True,
+    )
+
+    # ---------- ฟิกซ์ที่ 2: ช่องกรอก / selectbox (ครอบทุกชั้นแบบไม่พึ่งโครงสร้าง) ----------
+    st.markdown("""
+    <style>
+    .stApp textarea, .stApp input[type="text"], .stApp input[type="number"],
+    .stApp input[type="password"], .stApp input:not([type]),
+    .stApp [data-testid="stTextInput"] :is([data-baseweb], [data-baseweb] *),
+    .stApp [data-testid="stTextArea"] :is([data-baseweb], [data-baseweb] *),
+    .stApp [data-testid="stNumberInput"] :is([data-baseweb], [data-baseweb] *),
+    .stApp [data-testid="stSelectbox"] :is([data-baseweb], [data-baseweb] *),
+    .stApp [data-testid="stMultiSelect"] :is([data-baseweb], [data-baseweb] *) {
+        background-color: #111B2E !important;
+        color: #F1F5F9 !important;
+        -webkit-text-fill-color: #F1F5F9 !important;
+        caret-color: #F1F5F9 !important;
+    }
+    .stApp [data-testid="stTextInput"] [data-baseweb="input"],
+    .stApp [data-testid="stTextArea"] [data-baseweb="textarea"],
+    .stApp [data-testid="stNumberInput"] [data-baseweb="input"],
+    .stApp [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
+    }
+    .stApp textarea::placeholder, .stApp input::placeholder {
+        color: #64748B !important; -webkit-text-fill-color: #64748B !important;
+    }
+    .stApp [data-testid="stSelectbox"] svg { fill: #CBD5E1 !important; }
+    </style>
+    """, unsafe_allow_html=True)# --- HERO HEADER ---
 st.markdown("""
 <div class="hero-banner">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
